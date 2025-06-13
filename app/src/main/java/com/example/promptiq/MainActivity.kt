@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.ui.theme.PromptIQTheme
 import com.example.promptiq.ui.utils.screens.LoginScreen
+import com.example.promptiq.ui.utils.screens.HomeScreen
 import com.example.promptiq.viewmodel.LoginViewModel
 import com.example.promptiq.viewmodel.LoginViewModelFactory
 
@@ -27,7 +28,18 @@ class MainActivity : ComponentActivity() {
                 var userName by remember { mutableStateOf("") }
 
                 if (isLoggedIn) {
-                    // TeleprompterScreen(userName = userName)
+                    HomeScreen(
+                        userName = userName,
+                        onTeleprompterClick = { /* TODO */ },
+                        onScriptManagementClick = { /* TODO */ },
+                        onSettingsClick = { /* TODO */ },
+                        onHelpClick = { /* TODO */ },
+                        onLogoutClick = {
+                            viewModel.cerrarSesion()
+                            isLoggedIn = false
+                        }
+                    )
+
                 } else {
                     LoginScreen(
                         viewModel = viewModel,
