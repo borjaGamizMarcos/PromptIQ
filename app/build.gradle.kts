@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.example.promptiq"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.promptiq"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -40,7 +40,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "1.5.0"
     }
     packaging {
         resources {
@@ -59,6 +59,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    // Para ViewModel en Compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+// Opcional: para fuente Roboto si usas XML
+    implementation("androidx.compose.ui:ui-text:1.5.4")
+    implementation("androidx.compose.material3:material3:1.1.2")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

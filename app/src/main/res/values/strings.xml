@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">PromptIQ</string>
+    <string name="eslogan_html">Tu discurso, <font color="#3A5A91"><b>a tu ritmo</b></font></string>
+
+
+
 </resources>

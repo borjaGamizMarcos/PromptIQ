@@ -1,47 +1,46 @@
 package com.example.promptiq
 
+import android.app.Application
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.ui.theme.PromptIQTheme
+import com.example.promptiq.ui.utils.screens.LoginScreen
+import com.example.promptiq.viewmodel.LoginViewModel
+import com.example.promptiq.viewmodel.LoginViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             PromptIQTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                val context = LocalContext.current
+                val viewModel: LoginViewModel = viewModel(
+                    factory = LoginViewModelFactory(context.applicationContext as Application)
+                )
+
+                var isLoggedIn by remember { mutableStateOf(false) }
+                var userName by remember { mutableStateOf("") }
+
+                if (isLoggedIn) {
+                    // TeleprompterScreen(userName = userName)
+                } else {
+                    LoginScreen(
+                        viewModel = viewModel,
+                        onLoginSuccess = { nombre, _ ->
+                            userName = nombre
+                            isLoggedIn = true
+                        },
+                        showError = { mensaje ->
+                            Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PromptIQTheme {
-        Greeting("Android")
     }
 }
