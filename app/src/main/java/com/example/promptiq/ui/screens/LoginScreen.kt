@@ -36,7 +36,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(id=R.color.background))
+            .background(Color(0xFF0A192F))
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
@@ -44,7 +44,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.logo),
+            painter = painterResource(id = R.drawable.logo_hor),
             contentDescription = "Logo",
             modifier = Modifier.size(300.dp)
         )
