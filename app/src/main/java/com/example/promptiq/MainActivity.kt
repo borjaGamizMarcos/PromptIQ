@@ -4,7 +4,9 @@ import android.app.Application
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -36,12 +38,33 @@ class MainActivity : ComponentActivity() {
                 val guionViewModel: GuionViewModel = viewModel(factory = GuionViewModelFactory(context.applicationContext as Application))
                 val snackbarHostState = remember { SnackbarHostState() }
 
+
                 var isLoggedIn by remember { mutableStateOf(false) }
                 var userName by remember { mutableStateOf("") }
                 var userEmail by remember { mutableStateOf("") }
                 var currentScreen by remember { mutableStateOf(Screen.HOME) }
                 var guionEnEdicion by remember { mutableStateOf<Guion?>(null) }
                 var mostrarFormulario by remember { mutableStateOf(false) }
+
+                val seleccionarArchivoLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri ->
+                    uri?.let {
+                        val inputStream = context.contentResolver.openInputStream(it)
+                        val contenido = inputStream?.bufferedReader().use { it?.readText() } ?: ""
+                        if (contenido.isNotBlank()) {
+                            val nuevoGuion = Guion(
+                                titulo = "Importado ${System.currentTimeMillis()}",
+                                contenido = contenido,
+                                usuarioEmail = userEmail
+                            )
+                            guionViewModel.insertarGuion(nuevoGuion)
+                            Toast.makeText(context, "Guion importado correctamente", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "El archivo está vacío", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
 
 
                 if (isLoggedIn) {
@@ -89,7 +112,8 @@ class MainActivity : ComponentActivity() {
                                     onVolver = { currentScreen = Screen.HOME },
                                     onMostrarMensaje = { mensaje ->
                                         Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
-                                    }
+                                    },
+                                    onImportarGuion = { seleccionarArchivoLauncher.launch("text/plain")}
                                 )
                             }
                         }

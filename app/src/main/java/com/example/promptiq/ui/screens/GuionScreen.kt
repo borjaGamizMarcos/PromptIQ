@@ -34,7 +34,8 @@ fun GuionScreen(
     viewModel: GuionViewModel,
     onEditarGuion: (Guion?) -> Unit,
     onVolver: () -> Unit,
-    onMostrarMensaje: (String) -> Unit
+    onMostrarMensaje: (String) -> Unit,
+    onImportarGuion: () -> Unit
 ) {
     val guiones by viewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList())
     var guionAEliminar by remember { mutableStateOf<Guion?>(null) }
@@ -146,6 +147,24 @@ fun GuionScreen(
                     color = Color(0xFFDFDCCC)
                 )
             }
+
+            Button(
+                onClick = onImportarGuion,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A5A91))
+            ) {
+                Text(
+                    text = "Importar Guión",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = roboto,
+                    color = Color(0xFFDFDCCC)
+                )
+            }
+
+
         }
 
         // Diálogo de confirmación
