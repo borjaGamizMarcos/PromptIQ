@@ -16,9 +16,11 @@ import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
+import com.example.promptiq.ui.screens.CambiarContraseñaScreen
 import com.example.promptiq.ui.theme.PromptIQTheme
 import com.example.promptiq.ui.utils.screens.HomeScreen
 import com.example.promptiq.ui.utils.screens.LoginScreen
+import com.example.promptiq.ui.screens.TeleprompterScreen
 import com.example.promptiq.viewmodel.AjustesViewModel
 import com.example.promptiq.viewmodel.AjustesViewModelFactory
 import com.example.promptiq.viewmodel.GuionViewModel
@@ -29,7 +31,7 @@ import com.example.promptiq.viewmodel.LoginViewModelFactory
 class MainActivity : ComponentActivity() {
 
     enum class Screen {
-        HOME, GUIONES, AJUSTES
+        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,6 +59,8 @@ class MainActivity : ComponentActivity() {
                 val ajustesViewModel: AjustesViewModel = viewModel(
                     factory = AjustesViewModelFactory(context.applicationContext as Application)
                 )
+
+                var guionSeleccionado by remember { mutableStateOf<Guion?>(null) }
 
 
 
@@ -104,7 +108,7 @@ class MainActivity : ComponentActivity() {
                             Screen.HOME -> {
                                 HomeScreen(
                                     userName = userName,
-                                    onTeleprompterClick = { /* TODO */ },
+                                    onTeleprompterClick = { currentScreen = Screen.TELEPROMPTER },
                                     onScriptManagementClick = { currentScreen = Screen.GUIONES },
                                     onSettingsClick = { currentScreen= Screen.AJUSTES },
                                     onHelpClick = { /* TODO */ },
@@ -133,7 +137,7 @@ class MainActivity : ComponentActivity() {
                             Screen.AJUSTES ->
                                 AjustesScreen(
                                     onVolver = { currentScreen = Screen.HOME },
-                                    onCambiarContraseña = { /* TODO */ },
+                                    onCambiarContraseña = { currentScreen = Screen.CAMBIAR_CONTRASENA},
                                     fuente = ajustesViewModel.fuente.collectAsState().value,
                                     onFuenteChange = ajustesViewModel::setFuente,
                                     colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
@@ -144,8 +148,25 @@ class MainActivity : ComponentActivity() {
                                     onRitmoLecturaChange = ajustesViewModel::setRitmoLectura
                                 )
 
+                            Screen.CAMBIAR_CONTRASENA ->
+                                CambiarContraseñaScreen(
+                                    onVolver = { currentScreen = Screen.AJUSTES }
+                                )
+
+                            Screen.TELEPROMPTER -> {
+                                TeleprompterScreen(
+                                    guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
+                                    guionSeleccionado = guionSeleccionado,
+                                    onGuionSeleccionar = { guionSeleccionado = it },
+                                    fuente = ajustesViewModel.fuente.collectAsState().value,
+                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                    ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
+                                    onVolver = { currentScreen = Screen.HOME }
+                                )
+                            }
 
                         }
+
                     }
 
 
