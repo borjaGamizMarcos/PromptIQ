@@ -27,6 +27,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLogoutClick: () -> Unit
+
 ) {
     Column(
         modifier = Modifier

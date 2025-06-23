@@ -9,14 +9,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.data.local.Guion
+import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
 import com.example.promptiq.ui.theme.PromptIQTheme
 import com.example.promptiq.ui.utils.screens.HomeScreen
 import com.example.promptiq.ui.utils.screens.LoginScreen
+import com.example.promptiq.viewmodel.AjustesViewModel
+import com.example.promptiq.viewmodel.AjustesViewModelFactory
 import com.example.promptiq.viewmodel.GuionViewModel
 import com.example.promptiq.viewmodel.GuionViewModelFactory
 import com.example.promptiq.viewmodel.LoginViewModel
@@ -25,7 +29,7 @@ import com.example.promptiq.viewmodel.LoginViewModelFactory
 class MainActivity : ComponentActivity() {
 
     enum class Screen {
-        HOME, GUIONES
+        HOME, GUIONES, AJUSTES
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,7 +40,7 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModelFactory(context.applicationContext as Application))
                 val guionViewModel: GuionViewModel = viewModel(factory = GuionViewModelFactory(context.applicationContext as Application))
-                val snackbarHostState = remember { SnackbarHostState() }
+
 
 
                 var isLoggedIn by remember { mutableStateOf(false) }
@@ -45,6 +49,16 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf(Screen.HOME) }
                 var guionEnEdicion by remember { mutableStateOf<Guion?>(null) }
                 var mostrarFormulario by remember { mutableStateOf(false) }
+
+                var tamañoFuente by rememberSaveable { mutableStateOf(20f) }
+                var colorFondo by rememberSaveable { mutableStateOf("Oscuro") }
+                var ritmoVariable by rememberSaveable { mutableStateOf(true) }
+                var ritmoLectura by rememberSaveable { mutableStateOf(1f) }
+                val ajustesViewModel: AjustesViewModel = viewModel(
+                    factory = AjustesViewModelFactory(context.applicationContext as Application)
+                )
+
+
 
                 val seleccionarArchivoLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
@@ -92,7 +106,7 @@ class MainActivity : ComponentActivity() {
                                     userName = userName,
                                     onTeleprompterClick = { /* TODO */ },
                                     onScriptManagementClick = { currentScreen = Screen.GUIONES },
-                                    onSettingsClick = { /* TODO */ },
+                                    onSettingsClick = { currentScreen= Screen.AJUSTES },
                                     onHelpClick = { /* TODO */ },
                                     onLogoutClick = {
                                         loginViewModel.cerrarSesion()
@@ -116,6 +130,21 @@ class MainActivity : ComponentActivity() {
                                     onImportarGuion = { seleccionarArchivoLauncher.launch("text/plain")}
                                 )
                             }
+                            Screen.AJUSTES ->
+                                AjustesScreen(
+                                    onVolver = { currentScreen = Screen.HOME },
+                                    onCambiarContraseña = { /* TODO */ },
+                                    fuente = ajustesViewModel.fuente.collectAsState().value,
+                                    onFuenteChange = ajustesViewModel::setFuente,
+                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                    onColorFondoChange = ajustesViewModel::setColorFondo,
+                                    ritmoVariable = ajustesViewModel.ritmoVariable.collectAsState().value,
+                                    onRitmoVariableChange = ajustesViewModel::setRitmoVariable,
+                                    ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
+                                    onRitmoLecturaChange = ajustesViewModel::setRitmoLectura
+                                )
+
+
                         }
                     }
 
@@ -127,6 +156,7 @@ class MainActivity : ComponentActivity() {
                             userName = nombre
                             userEmail = email
                             isLoggedIn = true
+                            ajustesViewModel.cargarPreferencias(email)
                         },
                         showError = { mensaje ->
                             Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
