@@ -21,6 +21,7 @@ import com.example.promptiq.R
 import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.theme.roboto
 import kotlinx.coroutines.launch
+import com.google.accompanist.flowlayout.FlowRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,19 +38,9 @@ fun TeleprompterScreen(
     val palabras = remember(guionSeleccionado) {
         guionSeleccionado?.contenido?.split(" ") ?: emptyList()
     }
-    var palabraActualIndex by remember { mutableStateOf(0) }
-
+    var currentWordIndex by remember { mutableStateOf(0) }
     val scrollState = rememberScrollState()
-
-    // Scroll automático (solo si estaLeyendo)
-    LaunchedEffect(estaLeyendo) {
-        if (estaLeyendo) {
-            while (scrollState.canScrollForward) {
-                scrollState.animateScrollBy(ritmoLectura * 10)
-                kotlinx.coroutines.delay(100)
-            }
-        }
-    }
+    val coroutineScope = rememberCoroutineScope()
 
     // Fondo adaptado
     val fondoColor = when (colorFondo) {
@@ -57,6 +48,18 @@ fun TeleprompterScreen(
         "Oscuro" -> Color(0xFF0A192F)
         "Azul" -> Color(0xFF1E2A78)
         else -> Color(0xFF0A192F)
+    }
+
+    // Scroll automático
+    LaunchedEffect(estaLeyendo) {
+        if (estaLeyendo) {
+            while (currentWordIndex < palabras.size) {
+                currentWordIndex++
+                scrollState.animateScrollBy(ritmoLectura * 12)
+                kotlinx.coroutines.delay(300)
+            }
+            estaLeyendo = false
+        }
     }
 
     Box(
@@ -104,6 +107,7 @@ fun TeleprompterScreen(
                             text = { Text(guion.titulo) },
                             onClick = {
                                 onGuionSeleccionar(guion)
+                                currentWordIndex = 0
                                 expanded = false
                             }
                         )
@@ -116,22 +120,33 @@ fun TeleprompterScreen(
             // Zona de lectura
             Box(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(8.dp)
+                    .weight(1f)
                     .verticalScroll(scrollState)
-                    .background(Color.Transparent)
+                    .padding(8.dp)
             ) {
-                Text(
-                    text = guionSeleccionado?.contenido ?: "Selecciona un guion para comenzar la lectura.",
-                    fontSize = fuente.sp,
-                    color = if (colorFondo == "Claro") Color.Black else Color(0xFFDFDCCC),
-                    fontFamily = roboto
-                )
+                FlowRow(
+                    mainAxisSpacing = 8.dp,
+                    crossAxisSpacing = 8.dp
+                ) {
+                    palabras.forEachIndexed { index, palabra ->
+                        val color = when {
+                            index < currentWordIndex -> Color.Gray.copy(alpha = 0.7f)
+                            index == currentWordIndex -> Color.Yellow
+                            else -> if (colorFondo == "Claro") Color.Black else Color(0xFFDFDCCC)
+                        }
+
+                        Text(
+                            text = "$palabra ",
+                            fontSize = fuente.sp,
+                            fontFamily = roboto,
+                            color = color
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            val coroutineScope = rememberCoroutineScope()
 
             // Controles
             Row(
@@ -140,8 +155,10 @@ fun TeleprompterScreen(
             ) {
                 IconButton(onClick = {
                     coroutineScope.launch {
-                    scrollState.scrollTo(0)
-                }}) {
+                        scrollState.scrollTo(0)
+                    }
+                    currentWordIndex = 0
+                }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = Color(0xFFDFDCCC))
                 }
                 IconButton(onClick = { estaLeyendo = !estaLeyendo }) {

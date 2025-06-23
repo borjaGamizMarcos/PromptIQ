@@ -80,5 +80,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     kapt(libs.androidx.room.compiler)
+    implementation("androidx.compose.foundation:foundation-layout:1.5.4")
+    implementation("com.google.accompanist:accompanist-flowlayout:0.30.1")
+
 
 }
