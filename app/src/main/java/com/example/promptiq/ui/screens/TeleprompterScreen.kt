@@ -2,7 +2,7 @@ package com.example.promptiq.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -13,8 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.promptiq.R
@@ -22,6 +27,7 @@ import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.theme.roboto
 import kotlinx.coroutines.launch
 import com.google.accompanist.flowlayout.FlowRow
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +37,7 @@ fun TeleprompterScreen(
     onGuionSeleccionar: (Guion) -> Unit,
     fuente: Float,
     colorFondo: String,
-    ritmoLectura: Float,
+    ritmoLectura: Float, // palabras por segundo
     onVolver: () -> Unit
 ) {
     var estaLeyendo by remember { mutableStateOf(false) }
@@ -42,6 +48,9 @@ fun TeleprompterScreen(
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
 
+    val posicionesY = remember { mutableStateMapOf<Int, Int>() }
+    val density = LocalDensity.current
+
     // Fondo adaptado
     val fondoColor = when (colorFondo) {
         "Claro" -> Color.White
@@ -50,13 +59,19 @@ fun TeleprompterScreen(
         else -> Color(0xFF0A192F)
     }
 
-    // Scroll automático
+    // Scroll sincronizado a palabra actual
     LaunchedEffect(estaLeyendo) {
         if (estaLeyendo) {
             while (currentWordIndex < palabras.size) {
                 currentWordIndex++
-                scrollState.animateScrollBy(ritmoLectura * 12)
-                kotlinx.coroutines.delay(300)
+
+                // Calculamos la posición Y acumulada hasta la palabra actual
+                posicionesY[currentWordIndex]?.let { targetY ->
+                    scrollState.animateScrollTo(targetY)
+                }
+
+                val delayPorPalabra = (1000 / ritmoLectura).toLong().coerceAtLeast(100L)
+                delay(delayPorPalabra)
             }
             estaLeyendo = false
         }
@@ -140,7 +155,12 @@ fun TeleprompterScreen(
                             text = "$palabra ",
                             fontSize = fuente.sp,
                             fontFamily = roboto,
-                            color = color
+                            color = color,
+                            modifier = Modifier
+                                .onGloballyPositioned { layoutCoordinates ->
+                                    val y = layoutCoordinates.positionInParent().y.toInt()
+                                    posicionesY[index] = y
+                                }
                         )
                     }
                 }
