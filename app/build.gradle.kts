@@ -83,5 +83,19 @@ dependencies {
     implementation("androidx.compose.foundation:foundation-layout:1.5.4")
     implementation("com.google.accompanist:accompanist-flowlayout:0.30.1")
 
+    // CameraX
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
+
+
+    // ML Kit Face Detection
+    implementation("com.google.mlkit:face-detection:16.1.6")
+    implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")
+
+
 
 }
