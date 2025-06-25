@@ -15,6 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.screens.CameraFaceDetectionComposable
 import com.example.promptiq.ui.screens.SpeechRecognitionComposable
+import com.example.promptiq.ui.screens.AdaptativeScrollTestScreen
 import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
@@ -33,7 +34,7 @@ import com.example.promptiq.viewmodel.LoginViewModelFactory
 class MainActivity : ComponentActivity() {
 
     enum class Screen {
-        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER, FACE_DETECTION , SPEECH_RECOGNITION
+        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER, FACE_DETECTION , SPEECH_RECOGNITION, ADAPTATIVE
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity() {
                                     onTeleprompterClick = { currentScreen = Screen.TELEPROMPTER },
                                     onScriptManagementClick = { currentScreen = Screen.GUIONES },
                                     onSettingsClick = { currentScreen= Screen.AJUSTES },
-                                    onHelpClick = { currentScreen= Screen.SPEECH_RECOGNITION},
+                                    onHelpClick = { currentScreen= Screen.ADAPTATIVE},
                                     onLogoutClick = {
                                         loginViewModel.cerrarSesion()
                                         isLoggedIn = false
@@ -175,8 +176,9 @@ class MainActivity : ComponentActivity() {
                                 SpeechRecognitionComposable()
                             }
 
-
-                        }
+                            Screen.ADAPTATIVE->{
+                               AdaptativeScrollTestScreen() }
+                            }
 
                     }
 
