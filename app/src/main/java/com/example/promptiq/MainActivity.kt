@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.screens.CameraFaceDetectionComposable
+import com.example.promptiq.ui.screens.SpeechRecognitionComposable
 import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
@@ -32,7 +33,7 @@ import com.example.promptiq.viewmodel.LoginViewModelFactory
 class MainActivity : ComponentActivity() {
 
     enum class Screen {
-        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER, FACE_DETECTION
+        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER, FACE_DETECTION , SPEECH_RECOGNITION
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,7 +113,7 @@ class MainActivity : ComponentActivity() {
                                     onTeleprompterClick = { currentScreen = Screen.TELEPROMPTER },
                                     onScriptManagementClick = { currentScreen = Screen.GUIONES },
                                     onSettingsClick = { currentScreen= Screen.AJUSTES },
-                                    onHelpClick = { currentScreen= Screen.FACE_DETECTION},
+                                    onHelpClick = { currentScreen= Screen.SPEECH_RECOGNITION},
                                     onLogoutClick = {
                                         loginViewModel.cerrarSesion()
                                         isLoggedIn = false
@@ -168,6 +169,10 @@ class MainActivity : ComponentActivity() {
 
                             Screen.FACE_DETECTION -> {
                                 CameraFaceDetectionComposable()
+                            }
+
+                            Screen.SPEECH_RECOGNITION->{
+                                SpeechRecognitionComposable()
                             }
 
 
