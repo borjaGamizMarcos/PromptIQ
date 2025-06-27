@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -13,113 +11,126 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.delay
-import java.util.*
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun AdaptativeScrollTestScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     val fullText = remember {
-        """
-            Este es un texto de prueba para el teleprompter adaptativo. Puedes comenzar a leer en voz alta mientras se calibra la velocidad de tu dicción.
-            El sistema detectará automáticamente cuántas palabras estás diciendo por segundo y ajustará el ritmo del scroll de forma dinámica.
-            Este proceso se repetirá cada 15 segundos para adaptarse a tu velocidad de lectura.
-            Puedes seguir leyendo este texto con normalidad, observando cómo el scroll avanza y cómo se actualizan las métricas.
-            Esta es una prueba diseñada para validar que el scroll acompaña al ritmo real del lector.
-            Continúa leyendo y observa cómo el sistema responde.
-        """.trimIndent()
+        """Bienvenido al teleprompter adaptativo. Este texto ha sido diseñado para comprobar cómo se comporta el sistema con párrafos más extensos. A medida que lees este contenido en voz alta, el sistema irá reconociendo tus palabras y ajustando tanto el scroll como la velocidad del texto. Este mecanismo permite que la experiencia de lectura sea más natural, especialmente en contextos de presentaciones, vídeos o discursos. Continúa leyendo en voz alta hasta que el sistema se sincronice completamente con tu ritmo de dicción."""
+            .split(" ")
     }
 
-    var detectedWords by remember { mutableStateOf(0) }
-    var wps by remember { mutableStateOf(0f) }
-    var avgWps by remember { mutableStateOf(0f) }
-    var scrollOffset by remember { mutableStateOf(0f) }
+    var recognizedWords by remember { mutableStateOf(listOf<String>()) }
+    var isListening by remember { mutableStateOf(false) }
+    var isCalibrating by remember { mutableStateOf(false) }
+    var wpm by remember { mutableStateOf(150) }
+    var scrollIndex by remember { mutableStateOf(0) }
     val scrollState = rememberScrollState()
-    val handler = remember { Handler(Looper.getMainLooper()) }
+    var isCalibrated by remember { mutableStateOf(false) }
+    var recognizer: SpeechRecognizer? = remember { null }
+    var lastRecognizedWord by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        ActivityCompat.requestPermissions(
-            (context as android.app.Activity),
-            arrayOf(Manifest.permission.RECORD_AUDIO),
-            1
-        )
-
-        delay(1000)
-
-        val speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-
-
-        var wordsSum = 0
-        var intervals = 0
-
-        val listener = object : RecognitionListener {
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val words = matches?.joinToString(" ")?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
-                detectedWords += words.size
-                wordsSum += words.size
-                intervals++
-                wps = words.size / 5f
-                avgWps = wordsSum / (intervals * 5f)
-                scrollOffset += wps * 60f
+    val displayedText = buildAnnotatedString {
+        fullText.forEachIndexed { index, word ->
+            when {
+                index < scrollIndex -> withStyle(style = SpanStyle(color = Color.Gray)) { append("$word ") }
+                index == scrollIndex -> withStyle(style = SpanStyle(color = Color.Red, fontWeight = FontWeight.Bold)) { append("$word ") }
+                else -> append("$word ")
             }
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onError(error: Int) {}
-            override fun onPartialResults(partialResults: Bundle?) {}
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        }
-
-        speechRecognizer.setRecognitionListener(listener)
-
-        // Calibración inicial 5 segundos
-        speechRecognizer.startListening(intent)
-        delay(5000)
-        speechRecognizer.stopListening()
-
-        // Scroll y actualizaciones cada 15 s
-        while (true) {
-            delay(15000)
-            speechRecognizer.startListening(intent)
-            delay(5000)
-            speechRecognizer.stopListening()
         }
     }
 
-    LaunchedEffect(scrollOffset) {
-        scrollState.animateScrollTo(scrollOffset.toInt())
+    suspend fun adaptiveScroll() {
+        var lastRecalcTime = System.currentTimeMillis()
+        var lastRecognizedIndex = 0
+
+        while (scrollIndex < fullText.size) {
+            scrollIndex++
+            scrollState.animateScrollTo(scrollIndex * 30)
+            delay((60000 / wpm).toLong())
+
+            val now = System.currentTimeMillis()
+            if (now - lastRecalcTime >= 15000) {
+                val newRecognizedWords = recognizedWords.drop(lastRecognizedIndex)
+                if (newRecognizedWords.size >= 5) {
+                    val elapsedSeconds = (now - lastRecalcTime) / 1000f
+                    val newWps = newRecognizedWords.size / elapsedSeconds
+                    val newWpm = (newWps * 60).roundToInt().coerceIn(80, 1000)
+                    if (newWpm != wpm) {
+                        wpm = newWpm
+                        val lastWordSpoken = newRecognizedWords.last()
+                        lastRecognizedWord = lastWordSpoken
+                        val matchIndex = fullText.indexOfLast { it.equals(lastWordSpoken, ignoreCase = true) }
+                        if (matchIndex != -1 && matchIndex > scrollIndex) {
+                            scrollIndex = matchIndex + 1
+                            scrollState.animateScrollTo(scrollIndex * 30)
+                        }
+                    }
+                }
+                lastRecognizedIndex = recognizedWords.size
+                lastRecalcTime = now
+            }
+        }
+    }
+
+    fun startContinuousRecognition() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        }
+
+        recognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onResults(results: Bundle?) {
+                results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let {
+                    recognizedWords = recognizedWords + it.joinToString(" ").split(" ")
+                }
+                recognizer?.startListening(intent)
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let {
+                    recognizedWords = recognizedWords + it.joinToString(" ").split(" ")
+                }
+            }
+
+            override fun onBeginningOfSpeech() {}
+            override fun onBufferReceived(p0: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onError(p0: Int) { recognizer?.startListening(intent) }
+            override fun onEvent(p0: Int, p1: Bundle?) {}
+            override fun onReadyForSpeech(p0: Bundle?) {}
+            override fun onRmsChanged(p0: Float) {}
+        })
+
+        recognizer?.startListening(intent)
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Detectadas: $detectedWords", color = Color.White)
-            Text("Velocidad: ${"%.2f".format(wps)} wps", color = Color.White)
-            Text("Media: ${"%.2f".format(avgWps)} wps", color = Color.White)
-        }
+        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, modifier = Modifier.padding(8.dp))
+        Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.DarkGray)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -127,14 +138,62 @@ fun AdaptativeScrollTestScreen() {
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(scrollState)
+                .background(Color(0xFFF5F5F5))
+                .padding(16.dp)
         ) {
             Text(
-                text = fullText,
-                fontSize = 24.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color.White
+                text = displayedText,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Justify
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = {
+            if (!isListening) {
+                isListening = true
+                isCalibrating = true
+                recognizedWords = listOf()
+                scrollIndex = 0
+                isCalibrated = false
+
+                recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                startContinuousRecognition()
+
+                coroutineScope.launch {
+                    val initialDelay = (60000 / wpm).toLong()
+                    val startTime = System.currentTimeMillis()
+
+                    while (System.currentTimeMillis() - startTime < 5000) {
+                        delay(initialDelay)
+                        if (scrollIndex < fullText.size) {
+                            scrollIndex++
+                            scrollState.animateScrollTo(scrollIndex * 30)
+                        }
+                    }
+
+                    isCalibrating = false
+                    isCalibrated = true
+
+                    val elapsedSeconds = 5f
+                    val wordsSpoken = recognizedWords.size
+                    val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
+                    wpm = (wps * 60).roundToInt().coerceIn(80, 1000)
+
+                    launch { adaptiveScroll() }
+                }
+            }
+        }) {
+            Text(if (!isListening) "Iniciar Lectura" else if (isCalibrating) "Calibrando..." else "Reconociendo...")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        ActivityCompat.requestPermissions(
+            context as android.app.Activity,
+            arrayOf(Manifest.permission.RECORD_AUDIO),
+            123
+        )
     }
 }

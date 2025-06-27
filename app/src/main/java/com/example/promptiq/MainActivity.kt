@@ -177,7 +177,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Screen.ADAPTATIVE->{
-                               AdaptativeScrollTestScreen() }
+                               AdaptativeScrollTestScreen()}
                             }
 
                     }
