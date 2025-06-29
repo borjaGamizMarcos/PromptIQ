@@ -11,33 +11,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import com.example.promptiq.ui.theme.roboto
+import com.google.accompanist.flowlayout.FlowRow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdaptativeScrollTestScreen() {
+fun AdaptativeTextScreen() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     val fullText = remember {
-        """Bienvenido al teleprompter adaptativo. Este texto ha sido diseñado para comprobar cómo se comporta el sistema con párrafos más extensos. A medida que lees este contenido en voz alta, el sistema irá reconociendo tus palabras y ajustando tanto el scroll como la velocidad del texto. Este mecanismo permite que la experiencia de lectura sea más natural, especialmente en contextos de presentaciones, vídeos o discursos. Continúa leyendo en voz alta hasta que el sistema se sincronice completamente con tu ritmo de dicción."""
-            .split(" ")
+        ("""Bienvenido al teleprompter adaptativo. Este texto ha sido diseñado para comprobar cómo se comporta el sistema con párrafos más extensos. A medida que lees este contenido en voz alta, el sistema irá reconociendo tus palabras y ajustando tanto el scroll como la velocidad del texto. Este mecanismo permite que la experiencia de lectura sea más natural, especialmente en contextos de presentaciones, vídeos o discursos. Continúa leyendo en voz alta hasta que el sistema se sincronice completamente con tu ritmo de dicción."""
+            .repeat(10)).split(" ")
     }
 
     var recognizedWords by remember { mutableStateOf(listOf<String>()) }
@@ -49,25 +49,25 @@ fun AdaptativeScrollTestScreen() {
     var isCalibrated by remember { mutableStateOf(false) }
     var recognizer: SpeechRecognizer? = remember { null }
     var lastRecognizedWord by remember { mutableStateOf("") }
-
-    val displayedText = buildAnnotatedString {
-        fullText.forEachIndexed { index, word ->
-            when {
-                index < scrollIndex -> withStyle(style = SpanStyle(color = Color.Gray)) { append("$word ") }
-                index == scrollIndex -> withStyle(style = SpanStyle(color = Color.Red, fontWeight = FontWeight.Bold)) { append("$word ") }
-                else -> append("$word ")
-            }
-        }
-    }
+    val posicionesY = remember { mutableStateMapOf<Int, Int>() }
 
     suspend fun adaptiveScroll() {
         var lastRecalcTime = System.currentTimeMillis()
         var lastRecognizedIndex = 0
 
         while (scrollIndex < fullText.size) {
-            scrollIndex++
-            scrollState.animateScrollTo(scrollIndex * 30)
+            posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
             delay((60000 / wpm).toLong())
+            scrollIndex++
+
+            if (scrollIndex >= fullText.lastIndex) {
+                recognizer?.stopListening()
+                recognizer?.cancel()
+                recognizer?.destroy()
+                recognizer = null
+                isListening = false
+                break
+            }
 
             val now = System.currentTimeMillis()
             if (now - lastRecalcTime >= 15000) {
@@ -75,16 +75,17 @@ fun AdaptativeScrollTestScreen() {
                 if (newRecognizedWords.size >= 5) {
                     val elapsedSeconds = (now - lastRecalcTime) / 1000f
                     val newWps = newRecognizedWords.size / elapsedSeconds
-                    val newWpm = (newWps * 60).roundToInt().coerceIn(80, 1000)
-                    if (newWpm != wpm) {
-                        wpm = newWpm
-                        val lastWordSpoken = newRecognizedWords.last()
-                        lastRecognizedWord = lastWordSpoken
-                        val matchIndex = fullText.indexOfLast { it.equals(lastWordSpoken, ignoreCase = true) }
-                        if (matchIndex != -1 && matchIndex > scrollIndex) {
-                            scrollIndex = matchIndex + 1
-                            scrollState.animateScrollTo(scrollIndex * 30)
-                        }
+                    val newWpm = (newWps * 60).roundToInt().coerceIn(80, 300)
+                    wpm = (0.7f * wpm + 0.3f * newWpm).roundToInt()
+
+                    val lastWordSpoken = newRecognizedWords.last()
+                    lastRecognizedWord = lastWordSpoken
+                    val matchIndex = fullText.withIndex()
+                        .filter { it.value.equals(lastWordSpoken, ignoreCase = true) && it.index > scrollIndex }
+                        .minByOrNull { it.index }?.index
+
+                    if (matchIndex != null && matchIndex > scrollIndex) {
+                        scrollIndex = matchIndex + 1
                     }
                 }
                 lastRecognizedIndex = recognizedWords.size
@@ -102,14 +103,16 @@ fun AdaptativeScrollTestScreen() {
         recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle?) {
                 results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let {
-                    recognizedWords = recognizedWords + it.joinToString(" ").split(" ")
+                    val newWords = it.joinToString(" ").split(" ")
+                    recognizedWords = recognizedWords + newWords.filterNot { w -> recognizedWords.contains(w) }
                 }
                 recognizer?.startListening(intent)
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.let {
-                    recognizedWords = recognizedWords + it.joinToString(" ").split(" ")
+                    val newWords = it.joinToString(" ").split(" ")
+                    recognizedWords = recognizedWords + newWords.filterNot { w -> recognizedWords.contains(w) }
                 }
             }
 
@@ -126,11 +129,11 @@ fun AdaptativeScrollTestScreen() {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color(0xFF0A192F)).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, modifier = Modifier.padding(8.dp))
-        Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.DarkGray)
+        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, color = Color.White, modifier = Modifier.padding(8.dp))
+        Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.LightGray)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -138,14 +141,30 @@ fun AdaptativeScrollTestScreen() {
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(scrollState)
-                .background(Color(0xFFF5F5F5))
-                .padding(16.dp)
+                .padding(8.dp)
         ) {
-            Text(
-                text = displayedText,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Justify
-            )
+            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
+                fullText.forEachIndexed { index, palabra ->
+                    val color = when {
+                        index < scrollIndex -> Color.Gray.copy(alpha = 0.7f)
+                        index == scrollIndex -> Color.Yellow
+                        else -> Color(0xFFDFDCCC)
+                    }
+
+                    Text(
+                        text = "$palabra ",
+                        fontSize = 20.sp,
+                        fontFamily = roboto,
+                        fontWeight = if (index == scrollIndex) FontWeight.Bold else FontWeight.Normal,
+                        color = color,
+                        modifier = Modifier
+                            .padding(end = 4.dp, bottom = 4.dp)
+                            .onGloballyPositioned { coords ->
+                                posicionesY[index] = coords.positionInParent().y.toInt()
+                            }
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -169,7 +188,7 @@ fun AdaptativeScrollTestScreen() {
                         delay(initialDelay)
                         if (scrollIndex < fullText.size) {
                             scrollIndex++
-                            scrollState.animateScrollTo(scrollIndex * 30)
+                            posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
                         }
                     }
 
@@ -179,7 +198,7 @@ fun AdaptativeScrollTestScreen() {
                     val elapsedSeconds = 5f
                     val wordsSpoken = recognizedWords.size
                     val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
-                    wpm = (wps * 60).roundToInt().coerceIn(80, 1000)
+                    wpm = (wps * 60).roundToInt().coerceIn(80, 300)
 
                     launch { adaptiveScroll() }
                 }

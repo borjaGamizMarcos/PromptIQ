@@ -15,7 +15,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.screens.CameraFaceDetectionComposable
 import com.example.promptiq.ui.screens.SpeechRecognitionComposable
-import com.example.promptiq.ui.screens.AdaptativeScrollTestScreen
+import com.example.promptiq.ui.screens.AdaptativeTextScreen
 import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
@@ -177,7 +177,7 @@ class MainActivity : ComponentActivity() {
                             }
 
                             Screen.ADAPTATIVE->{
-                               AdaptativeScrollTestScreen()}
+                               AdaptativeTextScreen()}
                             }
 
                     }
