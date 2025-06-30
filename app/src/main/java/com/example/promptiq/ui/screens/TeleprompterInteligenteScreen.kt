@@ -1,3 +1,4 @@
+
 package com.example.promptiq.ui.screens
 
 import android.Manifest
@@ -12,18 +13,23 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +37,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import com.example.promptiq.R
+import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.theme.roboto
 import com.google.accompanist.flowlayout.FlowRow
 import com.google.mlkit.vision.common.InputImage
@@ -40,14 +48,21 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdaptativeScrollTestScreen() {
+fun TeleprompterInteligenteScreen(
+    guiones: List<Guion>,
+    guionSeleccionado: Guion?,
+    onGuionSeleccionar: (Guion) -> Unit,
+    fuente: Float,
+    colorFondo: String,
+    onVolver: () -> Unit
+) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val fullText = remember {
-        ("""Bienvenido al teleprompter adaptativo. Este texto ha sido diseñado para comprobar cómo se comporta el sistema con párrafos más extensos. A medida que lees este contenido en voz alta, el sistema irá reconociendo tus palabras y ajustando tanto el scroll como la velocidad del texto. Este mecanismo permite que la experiencia de lectura sea más natural, especialmente en contextos de presentaciones, vídeos o discursos. Continúa leyendo en voz alta hasta que el sistema se sincronice completamente con tu ritmo de dicción."""
-            .repeat(10)).split(" ")
+    val palabras = remember(guionSeleccionado) {
+        guionSeleccionado?.contenido?.split(" ") ?: emptyList()
     }
 
     var recognizedWords by remember { mutableStateOf(listOf<String>()) }
@@ -60,7 +75,6 @@ fun AdaptativeScrollTestScreen() {
     var recognizer: SpeechRecognizer? = remember { null }
     var lastRecognizedWord by remember { mutableStateOf("") }
     val posicionesY = remember { mutableStateMapOf<Int, Int>() }
-
     var mirandoPantalla by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -77,17 +91,22 @@ fun AdaptativeScrollTestScreen() {
         var lastRecalcTime = System.currentTimeMillis()
         var lastRecognizedIndex = 0
 
-        while (scrollIndex < fullText.size) {
+        while (scrollIndex < palabras.size) {
             if (mirandoPantalla) {
+                val correctionFactor = 0.65f  // puedes ajustarlo a tu gusto (ej: 0.6–0.8)
+                val tiempoPorPalabra = ((60000 / wpm) * correctionFactor).toLong()
+
                 posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
-                delay((60000 / wpm).toLong())
+
+                // Desplazamiento más rápido si se ha interrumpido recientemente
+                delay((tiempoPorPalabra * 0.7).toLong())
                 scrollIndex++
             } else {
                 delay(200)
                 continue
             }
 
-            if (scrollIndex >= fullText.lastIndex) {
+            if (scrollIndex >= palabras.lastIndex) {
                 recognizer?.stopListening()
                 recognizer?.cancel()
                 recognizer?.destroy()
@@ -102,18 +121,20 @@ fun AdaptativeScrollTestScreen() {
                 if (newRecognizedWords.size >= 5) {
                     val elapsedSeconds = (now - lastRecalcTime) / 1000f
                     val newWps = newRecognizedWords.size / elapsedSeconds
-                    val newWpm = (newWps * 60).roundToInt().coerceIn(80, 300)
+                    val newWpm = (newWps * 60).roundToInt().coerceIn(100, 900)
                     wpm = (0.7f * wpm + 0.3f * newWpm).roundToInt()
 
                     val lastWordSpoken = newRecognizedWords.last()
                     lastRecognizedWord = lastWordSpoken
-                    val matchIndex = fullText.withIndex()
-                        .filter { it.value.equals(lastWordSpoken, ignoreCase = true) && it.index > scrollIndex }
-                        .minByOrNull { it.index }?.index
-
-                    if (matchIndex != null && matchIndex > scrollIndex) {
-                        scrollIndex = matchIndex + 1
+                    val safeRange = scrollIndex..(scrollIndex + 2).coerceAtMost(palabras.lastIndex)
+                    val matchIndex = safeRange.firstOrNull {
+                        palabras[it].equals(lastWordSpoken, ignoreCase = true)
                     }
+
+                    if (matchIndex != null && matchIndex == scrollIndex) {
+                        scrollIndex++
+                    }
+
                 }
                 lastRecognizedIndex = recognizedWords.size
                 lastRecalcTime = now
@@ -155,38 +176,94 @@ fun AdaptativeScrollTestScreen() {
         recognizer?.startListening(intent)
     }
 
+    val fondoColor = when (colorFondo) {
+        "Claro" -> Color.White
+        "Oscuro" -> Color(0xFF0A192F)
+        "Azul" -> Color(0xFF1E2A78)
+        else -> Color(0xFF0A192F)
+    }
+
     Column(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF0A192F)).padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .background(fondoColor)
+            .padding(16.dp)
     ) {
-        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, color = Color.White)
+        Box(Modifier.fillMaxWidth()) {
+            IconButton(onClick = { onVolver() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color(0xFFDFDCCC))
+            }
+            Image(
+                painter = painterResource(id = R.drawable.logo_hor),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(160.dp)
+                    .align(Alignment.Center)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("Velocidad estimada: $wpm wpm", fontSize = 16.sp, color = Color.White)
         Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.LightGray)
         Text("Mirando a la pantalla: ${if (mirandoPantalla) "Sí" else "No"}", fontSize = 14.sp, color = if (mirandoPantalla) Color.Green else Color.Red)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Column(
+        var expanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+            OutlinedTextField(
+                readOnly = true,
+                value = guionSeleccionado?.titulo ?: "Seleccionar guion",
+                onValueChange = {},
+                label = { Text("Guion") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                guiones.forEach { guion ->
+                    DropdownMenuItem(
+                        text = { Text(guion.titulo) },
+                        onClick = {
+                            onGuionSeleccionar(guion)
+                            scrollIndex = 0
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(scrollState)
                 .padding(8.dp)
         ) {
-            FlowRow(mainAxisSpacing = 8.dp, crossAxisSpacing = 8.dp) {
-                fullText.forEachIndexed { index, palabra ->
+            FlowRow(
+                mainAxisSpacing = 4.dp,
+                crossAxisSpacing = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                palabras.forEachIndexed { index, palabra ->
                     val color = when {
                         index < scrollIndex -> Color.Gray.copy(alpha = 0.7f)
                         index == scrollIndex -> Color.Yellow
-                        else -> Color(0xFFDFDCCC)
+                        else -> if (colorFondo == "Claro") Color.Black else Color(0xFFDFDCCC)
                     }
 
                     Text(
-                        text = "$palabra ",
-                        fontSize = 20.sp,
+                        text = palabra,
+                        fontSize = fuente.sp,
                         fontFamily = roboto,
                         fontWeight = if (index == scrollIndex) FontWeight.Bold else FontWeight.Normal,
                         color = color,
                         modifier = Modifier
-                            .padding(end = 4.dp, bottom = 4.dp)
+                            .padding(end = 2.dp)
                             .onGloballyPositioned { coords ->
                                 posicionesY[index] = coords.positionInParent().y.toInt()
                             }
@@ -195,44 +272,74 @@ fun AdaptativeScrollTestScreen() {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        Button(onClick = {
-            if (!isListening) {
-                isListening = true
-                isCalibrating = true
-                recognizedWords = listOf()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            IconButton(onClick = {
+                coroutineScope.launch { scrollState.scrollTo(0) }
                 scrollIndex = 0
-                isCalibrated = false
-
-                recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-                startContinuousRecognition()
-
-                coroutineScope.launch {
-                    val initialDelay = (60000 / wpm).toLong()
-                    val startTime = System.currentTimeMillis()
-
-                    while (System.currentTimeMillis() - startTime < 5000) {
-                        delay(initialDelay)
-                        if (scrollIndex < fullText.size) {
-                            scrollIndex++
-                            posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
-                        }
-                    }
-
-                    isCalibrating = false
-                    isCalibrated = true
-
-                    val elapsedSeconds = 5f
-                    val wordsSpoken = recognizedWords.size
-                    val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
-                    wpm = (wps * 60).roundToInt().coerceIn(80, 300)
-
-                    launch { adaptiveScroll() }
-                }
+            }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = Color(0xFFDFDCCC))
             }
-        }) {
-            Text(if (!isListening) "Iniciar Lectura" else if (isCalibrating) "Calibrando..." else "Reconociendo...")
+
+            IconButton(onClick = {
+                if (!isListening) {
+                    isListening = true
+                    isCalibrating = true
+                    recognizedWords = listOf()
+                    scrollIndex = 0
+                    isCalibrated = false
+
+                    recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                    startContinuousRecognition()
+
+                    coroutineScope.launch {
+                        val initialDelay = (60000 / wpm).toLong()
+                        val startTime = System.currentTimeMillis()
+
+                        while (System.currentTimeMillis() - startTime < 5000) {
+                            delay(initialDelay)
+                            if (scrollIndex < palabras.size) {
+                                scrollIndex++
+                                posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                            }
+                        }
+
+                        isCalibrating = false
+                        isCalibrated = true
+
+                        val elapsedSeconds = 5f
+                        val wordsSpoken = recognizedWords.size
+                        val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
+                        wpm = (wps * 60).roundToInt().coerceIn(150, 900)
+
+                        launch { adaptiveScroll() }
+                    }
+                }
+            }) {
+                Icon(
+                    if (!isListening) Icons.Default.PlayArrow else Icons.Default.Mic,
+                    contentDescription = "Iniciar",
+                    tint = Color(0xFFDFDCCC)
+                )
+            }
+
+            IconButton(onClick = {
+                isListening = false
+                recognizer?.stopListening()
+                recognizer?.cancel()
+                recognizer?.destroy()
+                recognizer = null
+            }) {
+                Icon(Icons.Default.Stop, contentDescription = "Detener", tint = Color(0xFFDFDCCC))
+            }
+
+            IconButton(onClick = { onVolver() }) {
+                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFFDFDCCC))
+            }
         }
     }
 }
@@ -253,7 +360,7 @@ fun CameraPreviewWithFaceDetection(context: Context, onMiradaDetectada: (Boolean
     }
 
     AndroidView(
-        factory = { ctx ->
+        factory = { ctx: Context ->
             val previewView = androidx.camera.view.PreviewView(ctx)
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
@@ -297,7 +404,7 @@ fun CameraPreviewWithFaceDetection(context: Context, onMiradaDetectada: (Boolean
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(1.dp) // Oculto visualmente, pero activo
+            .height(1.dp)
     )
 }
 

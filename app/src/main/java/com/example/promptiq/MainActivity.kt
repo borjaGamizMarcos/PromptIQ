@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.promptiq.data.local.Guion
 import com.example.promptiq.ui.screens.SpeechRecognitionComposable
-import com.example.promptiq.ui.screens.AdaptativeScrollTestScreen
+import com.example.promptiq.ui.screens.TeleprompterInteligenteScreen
 import com.example.promptiq.ui.screens.AjustesScreen
 import com.example.promptiq.ui.screens.GuionFormScreen
 import com.example.promptiq.ui.screens.GuionScreen
@@ -29,11 +29,11 @@ import com.example.promptiq.viewmodel.GuionViewModel
 import com.example.promptiq.viewmodel.GuionViewModelFactory
 import com.example.promptiq.viewmodel.LoginViewModel
 import com.example.promptiq.viewmodel.LoginViewModelFactory
-
+import com.example.promptiq.ui.screens.AyudaScreen
 class MainActivity : ComponentActivity() {
 
     enum class Screen {
-        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER,  SPEECH_RECOGNITION, ADAPTATIVE
+        HOME, GUIONES, AJUSTES, CAMBIAR_CONTRASENA, TELEPROMPTER, ADAPTATIVE, AYUDA
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,10 +110,13 @@ class MainActivity : ComponentActivity() {
                             Screen.HOME -> {
                                 HomeScreen(
                                     userName = userName,
-                                    onTeleprompterClick = { currentScreen = Screen.TELEPROMPTER },
+                                    onTeleprompterClick = {
+                                        val ritmoVariableActivo = ajustesViewModel.ritmoVariable.value
+                                        currentScreen = if (ritmoVariableActivo) Screen.ADAPTATIVE else Screen.TELEPROMPTER
+                                    },
                                     onScriptManagementClick = { currentScreen = Screen.GUIONES },
                                     onSettingsClick = { currentScreen= Screen.AJUSTES },
-                                    onHelpClick = { currentScreen= Screen.ADAPTATIVE},
+                                    onHelpClick = { currentScreen= Screen.AYUDA},
                                     onLogoutClick = {
                                         loginViewModel.cerrarSesion()
                                         isLoggedIn = false
@@ -169,16 +172,23 @@ class MainActivity : ComponentActivity() {
 
 
 
-                            Screen.SPEECH_RECOGNITION->{
-                                SpeechRecognitionComposable()
+                            Screen.AYUDA->{
+                                AyudaScreen(onVolver= {currentScreen= Screen.HOME})
                             }
-
                             Screen.ADAPTATIVE->{
-                               AdaptativeScrollTestScreen()}
+                                TeleprompterInteligenteScreen(
+                                    guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
+                                    guionSeleccionado = guionSeleccionado,
+                                    onGuionSeleccionar = { guionSeleccionado = it },
+                                    fuente = ajustesViewModel.fuente.collectAsState().value,
+                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                    onVolver = { currentScreen = Screen.HOME }
+                                )
+
                             }
 
                     }
-
+                }
 
             } else {
                     LoginScreen(
