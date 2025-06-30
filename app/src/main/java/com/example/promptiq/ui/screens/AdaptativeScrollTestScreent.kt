@@ -1,12 +1,17 @@
 package com.example.promptiq.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
+import androidx.annotation.OptIn
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,16 +27,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.example.promptiq.ui.theme.roboto
 import com.google.accompanist.flowlayout.FlowRow
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdaptativeTextScreen() {
+fun AdaptativeScrollTestScreen() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -51,14 +61,31 @@ fun AdaptativeTextScreen() {
     var lastRecognizedWord by remember { mutableStateOf("") }
     val posicionesY = remember { mutableStateMapOf<Int, Int>() }
 
+    var mirandoPantalla by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        ActivityCompat.requestPermissions(
+            context as Activity,
+            arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA),
+            123
+        )
+    }
+
+    CameraPreviewWithFaceDetection(context) { mirandoPantalla = it }
+
     suspend fun adaptiveScroll() {
         var lastRecalcTime = System.currentTimeMillis()
         var lastRecognizedIndex = 0
 
         while (scrollIndex < fullText.size) {
-            posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
-            delay((60000 / wpm).toLong())
-            scrollIndex++
+            if (mirandoPantalla) {
+                posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                delay((60000 / wpm).toLong())
+                scrollIndex++
+            } else {
+                delay(200)
+                continue
+            }
 
             if (scrollIndex >= fullText.lastIndex) {
                 recognizer?.stopListening()
@@ -132,8 +159,9 @@ fun AdaptativeTextScreen() {
         modifier = Modifier.fillMaxSize().background(Color(0xFF0A192F)).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, color = Color.White, modifier = Modifier.padding(8.dp))
+        Text("Velocidad estimada: $wpm wpm", fontSize = 18.sp, color = Color.White)
         Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.LightGray)
+        Text("Mirando a la pantalla: ${if (mirandoPantalla) "Sí" else "No"}", fontSize = 14.sp, color = if (mirandoPantalla) Color.Green else Color.Red)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -207,12 +235,96 @@ fun AdaptativeTextScreen() {
             Text(if (!isListening) "Iniciar Lectura" else if (isCalibrating) "Calibrando..." else "Reconociendo...")
         }
     }
+}
 
-    LaunchedEffect(Unit) {
-        ActivityCompat.requestPermissions(
-            context as android.app.Activity,
-            arrayOf(Manifest.permission.RECORD_AUDIO),
-            123
-        )
+@Composable
+fun CameraPreviewWithFaceDetection(context: Context, onMiradaDetectada: (Boolean) -> Unit) {
+    val lifecycleOwner = LocalContext.current as LifecycleOwner
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    var isProcessing by remember { mutableStateOf(false) }
+
+    val detector: FaceDetector = remember {
+        val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+            .enableTracking()
+            .build()
+        FaceDetection.getClient(options)
     }
+
+    AndroidView(
+        factory = { ctx ->
+            val previewView = androidx.camera.view.PreviewView(ctx)
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build()
+
+                imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                    if (isProcessing) {
+                        imageProxy.close()
+                        return@setAnalyzer
+                    }
+
+                    isProcessing = true
+                    processImage(imageProxy, detector) { mirando ->
+                        isProcessing = false
+                        onMiradaDetectada(mirando)
+                    }
+                }
+
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_FRONT_CAMERA,
+                        preview,
+                        imageAnalysis
+                    )
+                } catch (exc: Exception) {
+                    Log.e("CameraPreview", "Error al enlazar cámara", exc)
+                }
+            }, ContextCompat.getMainExecutor(ctx))
+
+            previewView
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp) // Oculto visualmente, pero activo
+    )
+}
+
+@OptIn(ExperimentalGetImage::class)
+fun processImage(
+    imageProxy: ImageProxy,
+    detector: FaceDetector,
+    onResult: (Boolean) -> Unit
+) {
+    val mediaImage = imageProxy.image ?: return imageProxy.close().also { onResult(false) }
+    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+    detector.process(image)
+        .addOnSuccessListener { faces ->
+            val mirando = faces.any { isLookingAtScreen(it) }
+            onResult(mirando)
+        }
+        .addOnFailureListener {
+            onResult(false)
+        }
+        .addOnCompleteListener {
+            imageProxy.close()
+        }
+}
+
+fun isLookingAtScreen(face: Face): Boolean {
+    val eulerY = face.headEulerAngleY
+    val eulerX = face.headEulerAngleX
+    return eulerY in -15f..15f && eulerX in -15f..15f
 }
