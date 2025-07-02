@@ -1,6 +1,7 @@
 package com.example.promptiq
 
 import android.app.Application
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,11 +46,12 @@ class MainActivity : ComponentActivity() {
                 val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModelFactory(context.applicationContext as Application))
                 val guionViewModel: GuionViewModel = viewModel(factory = GuionViewModelFactory(context.applicationContext as Application))
 
+                // ✅ Cargar sesión almacenada si existe
+                val sharedPreferences = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+                var isLoggedIn by remember { mutableStateOf(sharedPreferences.getBoolean("isLoggedIn", false)) }
+                var userName by remember { mutableStateOf(sharedPreferences.getString("userName", "") ?: "") }
+                var userEmail by remember { mutableStateOf(sharedPreferences.getString("userEmail", "") ?: "") }
 
-
-                var isLoggedIn by remember { mutableStateOf(false) }
-                var userName by remember { mutableStateOf("") }
-                var userEmail by remember { mutableStateOf("") }
                 var currentScreen by remember { mutableStateOf(Screen.HOME) }
                 var guionEnEdicion by remember { mutableStateOf<Guion?>(null) }
                 var mostrarFormulario by remember { mutableStateOf(false) }
@@ -58,13 +60,9 @@ class MainActivity : ComponentActivity() {
                 var colorFondo by rememberSaveable { mutableStateOf("Oscuro") }
                 var ritmoVariable by rememberSaveable { mutableStateOf(true) }
                 var ritmoLectura by rememberSaveable { mutableStateOf(1f) }
-                val ajustesViewModel: AjustesViewModel = viewModel(
-                    factory = AjustesViewModelFactory(context.applicationContext as Application)
-                )
 
+                val ajustesViewModel: AjustesViewModel = viewModel(factory = AjustesViewModelFactory(context.applicationContext as Application))
                 var guionSeleccionado by remember { mutableStateOf<Guion?>(null) }
-
-
 
                 val seleccionarArchivoLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
@@ -86,7 +84,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-
                 if (isLoggedIn) {
                     if (mostrarFormulario) {
                         GuionFormScreen(
@@ -107,90 +104,80 @@ class MainActivity : ComponentActivity() {
                         )
                     } else {
                         when (currentScreen) {
-                            Screen.HOME -> {
-                                HomeScreen(
-                                    userName = userName,
-                                    onTeleprompterClick = {
-                                        val ritmoVariableActivo = ajustesViewModel.ritmoVariable.value
-                                        currentScreen = if (ritmoVariableActivo) Screen.ADAPTATIVE else Screen.TELEPROMPTER
-                                    },
-                                    onScriptManagementClick = { currentScreen = Screen.GUIONES },
-                                    onSettingsClick = { currentScreen= Screen.AJUSTES },
-                                    onHelpClick = { currentScreen= Screen.AYUDA},
-                                    onLogoutClick = {
-                                        loginViewModel.cerrarSesion()
-                                        isLoggedIn = false
-                                    }
-                                )
-                            }
+                            Screen.HOME -> HomeScreen(
+                                userName = userName,
+                                onTeleprompterClick = {
+                                    val ritmoVariableActivo = ajustesViewModel.ritmoVariable.value
+                                    currentScreen = if (ritmoVariableActivo) Screen.ADAPTATIVE else Screen.TELEPROMPTER
+                                },
+                                onScriptManagementClick = { currentScreen = Screen.GUIONES },
+                                onSettingsClick = { currentScreen = Screen.AJUSTES },
+                                onHelpClick = { currentScreen = Screen.AYUDA },
+                                onLogoutClick = {
+                                    loginViewModel.cerrarSesion()
+                                    isLoggedIn = false
 
-                            Screen.GUIONES -> {
-                                GuionScreen(
-                                    viewModel = guionViewModel,
-                                    userEmail = userEmail,
-                                    onEditarGuion = { guion ->
-                                        guionEnEdicion = guion
-                                        mostrarFormulario = true
-                                    },
-                                    onVolver = { currentScreen = Screen.HOME },
-                                    onMostrarMensaje = { mensaje ->
-                                        Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
-                                    },
-                                    onImportarGuion = { seleccionarArchivoLauncher.launch("text/plain")}
-                                )
-                            }
-                            Screen.AJUSTES ->
-                                AjustesScreen(
-                                    onVolver = { currentScreen = Screen.HOME },
-                                    onCambiarContraseña = { currentScreen = Screen.CAMBIAR_CONTRASENA},
-                                    fuente = ajustesViewModel.fuente.collectAsState().value,
-                                    onFuenteChange = ajustesViewModel::setFuente,
-                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
-                                    onColorFondoChange = ajustesViewModel::setColorFondo,
-                                    ritmoVariable = ajustesViewModel.ritmoVariable.collectAsState().value,
-                                    onRitmoVariableChange = ajustesViewModel::setRitmoVariable,
-                                    ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
-                                    onRitmoLecturaChange = ajustesViewModel::setRitmoLectura
-                                )
+                                    // ✅ Limpiar sesión guardada
+                                    sharedPreferences.edit().clear().apply()
+                                }
+                            )
 
-                            Screen.CAMBIAR_CONTRASENA ->
-                                CambiarContraseñaScreen(
-                                    onVolver = { currentScreen = Screen.AJUSTES }
-                                )
+                            Screen.GUIONES -> GuionScreen(
+                                viewModel = guionViewModel,
+                                userEmail = userEmail,
+                                onEditarGuion = { guion ->
+                                    guionEnEdicion = guion
+                                    mostrarFormulario = true
+                                },
+                                onVolver = { currentScreen = Screen.HOME },
+                                onMostrarMensaje = { mensaje ->
+                                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
+                                },
+                                onImportarGuion = { seleccionarArchivoLauncher.launch("text/plain") }
+                            )
 
-                            Screen.TELEPROMPTER -> {
-                                TeleprompterScreen(
-                                    guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
-                                    guionSeleccionado = guionSeleccionado,
-                                    onGuionSeleccionar = { guionSeleccionado = it },
-                                    fuente = ajustesViewModel.fuente.collectAsState().value,
-                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
-                                    ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
-                                    onVolver = { currentScreen = Screen.HOME }
-                                )
-                            }
+                            Screen.AJUSTES -> AjustesScreen(
+                                onVolver = { currentScreen = Screen.HOME },
+                                onCambiarContraseña = { currentScreen = Screen.CAMBIAR_CONTRASENA },
+                                fuente = ajustesViewModel.fuente.collectAsState().value,
+                                onFuenteChange = ajustesViewModel::setFuente,
+                                colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                onColorFondoChange = ajustesViewModel::setColorFondo,
+                                ritmoVariable = ajustesViewModel.ritmoVariable.collectAsState().value,
+                                onRitmoVariableChange = ajustesViewModel::setRitmoVariable,
+                                ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
+                                onRitmoLecturaChange = ajustesViewModel::setRitmoLectura
+                            )
 
+                            Screen.CAMBIAR_CONTRASENA -> CambiarContraseñaScreen(
+                                onVolver = { currentScreen = Screen.AJUSTES }
+                            )
 
+                            Screen.TELEPROMPTER -> TeleprompterScreen(
+                                guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
+                                guionSeleccionado = guionSeleccionado,
+                                onGuionSeleccionar = { guionSeleccionado = it },
+                                fuente = ajustesViewModel.fuente.collectAsState().value,
+                                colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                ritmoLectura = ajustesViewModel.ritmoLectura.collectAsState().value,
+                                onVolver = { currentScreen = Screen.HOME }
+                            )
 
-                            Screen.AYUDA->{
-                                AyudaScreen(onVolver= {currentScreen= Screen.HOME})
-                            }
-                            Screen.ADAPTATIVE->{
-                                TeleprompterInteligenteScreen(
-                                    guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
-                                    guionSeleccionado = guionSeleccionado,
-                                    onGuionSeleccionar = { guionSeleccionado = it },
-                                    fuente = ajustesViewModel.fuente.collectAsState().value,
-                                    colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
-                                    onVolver = { currentScreen = Screen.HOME }
-                                )
+                            Screen.ADAPTATIVE -> TeleprompterInteligenteScreen(
+                                guiones = guionViewModel.obtenerGuionesPorEmail(userEmail).collectAsState(initial = emptyList()).value,
+                                guionSeleccionado = guionSeleccionado,
+                                onGuionSeleccionar = { guionSeleccionado = it },
+                                fuente = ajustesViewModel.fuente.collectAsState().value,
+                                colorFondo = ajustesViewModel.colorFondo.collectAsState().value,
+                                onVolver = { currentScreen = Screen.HOME }
+                            )
 
-                            }
-
+                            Screen.AYUDA -> AyudaScreen(
+                                onVolver = { currentScreen = Screen.HOME }
+                            )
+                        }
                     }
-                }
-
-            } else {
+                } else {
                     LoginScreen(
                         viewModel = loginViewModel,
                         onLoginSuccess = { nombre, email ->
@@ -198,6 +185,13 @@ class MainActivity : ComponentActivity() {
                             userEmail = email
                             isLoggedIn = true
                             ajustesViewModel.cargarPreferencias(email)
+
+                            // ✅ Guardar sesión en SharedPreferences
+                            sharedPreferences.edit()
+                                .putBoolean("isLoggedIn", true)
+                                .putString("userName", nombre)
+                                .putString("userEmail", email)
+                                .apply()
                         },
                         showError = { mensaje ->
                             Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()

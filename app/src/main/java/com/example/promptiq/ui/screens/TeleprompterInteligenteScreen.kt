@@ -76,6 +76,14 @@ fun TeleprompterInteligenteScreen(
     var lastRecognizedWord by remember { mutableStateOf("") }
     val posicionesY = remember { mutableStateMapOf<Int, Int>() }
     var mirandoPantalla by remember { mutableStateOf(true) }
+    var mostrarPopupAjustes by remember { mutableStateOf(false) }
+    var currentFuente by remember { mutableStateOf(fuente) }
+    var shouldScroll by remember { mutableStateOf(false) }
+    var wasPaused by remember { mutableStateOf(false) }
+
+
+
+
 
     LaunchedEffect(Unit) {
         ActivityCompat.requestPermissions(
@@ -91,7 +99,7 @@ fun TeleprompterInteligenteScreen(
         var lastRecalcTime = System.currentTimeMillis()
         var lastRecognizedIndex = 0
 
-        while (scrollIndex < palabras.size) {
+        while (scrollIndex < palabras.size && shouldScroll) {
             if (mirandoPantalla) {
                 val correctionFactor = 0.65f  // puedes ajustarlo a tu gusto (ej: 0.6–0.8)
                 val tiempoPorPalabra = ((60000 / wpm) * correctionFactor).toLong()
@@ -200,6 +208,12 @@ fun TeleprompterInteligenteScreen(
                     .size(160.dp)
                     .align(Alignment.Center)
             )
+            IconButton(
+                onClick = { mostrarPopupAjustes = true },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = Color(0xFFDFDCCC))
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -258,7 +272,7 @@ fun TeleprompterInteligenteScreen(
 
                     Text(
                         text = palabra,
-                        fontSize = fuente.sp,
+                        fontSize = currentFuente.sp,
                         fontFamily = roboto,
                         fontWeight = if (index == scrollIndex) FontWeight.Bold else FontWeight.Normal,
                         color = color,
@@ -288,35 +302,44 @@ fun TeleprompterInteligenteScreen(
             IconButton(onClick = {
                 if (!isListening) {
                     isListening = true
-                    isCalibrating = true
-                    recognizedWords = listOf()
-                    scrollIndex = 0
-                    isCalibrated = false
+                    shouldScroll = true
 
-                    recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-                    startContinuousRecognition()
+                    if (!wasPaused) {
+                        isCalibrating = true
+                        recognizedWords = listOf()
+                        scrollIndex = 0
+                        isCalibrated = false
 
-                    coroutineScope.launch {
-                        val initialDelay = (60000 / wpm).toLong()
-                        val startTime = System.currentTimeMillis()
+                        recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                        startContinuousRecognition()
 
-                        while (System.currentTimeMillis() - startTime < 5000) {
-                            delay(initialDelay)
-                            if (scrollIndex < palabras.size) {
-                                scrollIndex++
-                                posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                        coroutineScope.launch {
+                            val initialDelay = (60000 / wpm).toLong()
+                            val startTime = System.currentTimeMillis()
+
+                            while (System.currentTimeMillis() - startTime < 5000) {
+                                delay(initialDelay)
+                                if (scrollIndex < palabras.size) {
+
+                                    posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                                    scrollIndex++
+                                }
                             }
+
+                            isCalibrating = false
+                            isCalibrated = true
+
+                            val elapsedSeconds = 5f
+                            val wordsSpoken = recognizedWords.size
+                            val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
+                            wpm = (wps * 60).roundToInt().coerceIn(150, 900)
+
+                            launch { adaptiveScroll() }
                         }
-
-                        isCalibrating = false
-                        isCalibrated = true
-
-                        val elapsedSeconds = 5f
-                        val wordsSpoken = recognizedWords.size
-                        val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
-                        wpm = (wps * 60).roundToInt().coerceIn(150, 900)
-
-                        launch { adaptiveScroll() }
+                    } else {
+                        wasPaused = false
+                        startContinuousRecognition()
+                        coroutineScope.launch { adaptiveScroll() }
                     }
                 }
             }) {
@@ -329,10 +352,13 @@ fun TeleprompterInteligenteScreen(
 
             IconButton(onClick = {
                 isListening = false
+                shouldScroll = false
                 recognizer?.stopListening()
                 recognizer?.cancel()
                 recognizer?.destroy()
                 recognizer = null
+                wasPaused=true
+
             }) {
                 Icon(Icons.Default.Stop, contentDescription = "Detener", tint = Color(0xFFDFDCCC))
             }
@@ -341,6 +367,32 @@ fun TeleprompterInteligenteScreen(
                 Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFFDFDCCC))
             }
         }
+        if (mostrarPopupAjustes) {
+            AlertDialog(
+                onDismissRequest = { mostrarPopupAjustes = false },
+                confirmButton = {
+                    TextButton(onClick = { mostrarPopupAjustes = false }) {
+                        Text("Aceptar", color = Color.White)
+                    }
+                },
+                containerColor = fondoColor,
+                title = {
+                    Text("Tamaño de fuente", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                },
+                text = {
+                    Column {
+                        Slider(
+                            value = currentFuente,
+                            onValueChange = { nuevaFuente ->
+                                currentFuente = nuevaFuente
+                            },
+                            valueRange = 12f..40f
+                        )
+                    }
+                }
+            )
+        }
+
     }
 }
 

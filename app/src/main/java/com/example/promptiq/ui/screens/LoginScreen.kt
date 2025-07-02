@@ -132,7 +132,7 @@ fun LoginScreen(
 
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A5A91))
         ) {
-            Text("INICIAR SESIÓN", fontFamily = roboto, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("INICIAR SESIÓN", fontFamily = roboto, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFFDFDCCC))
         }
 
 
