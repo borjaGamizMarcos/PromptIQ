@@ -62,9 +62,11 @@ fun TeleprompterInteligenteScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val palabras = remember(guionSeleccionado) {
-        guionSeleccionado?.contenido?.split(" ") ?: emptyList()
+        guionSeleccionado?.contenido
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+            ?.split(" ") ?: emptyList()
     }
-
     var recognizedWords by remember { mutableStateOf(listOf<String>()) }
     var isListening by remember { mutableStateOf(false) }
     var isCalibrating by remember { mutableStateOf(false) }
@@ -76,6 +78,14 @@ fun TeleprompterInteligenteScreen(
     var lastRecognizedWord by remember { mutableStateOf("") }
     val posicionesY = remember { mutableStateMapOf<Int, Int>() }
     var mirandoPantalla by remember { mutableStateOf(true) }
+    var mostrarPopupAjustes by remember { mutableStateOf(false) }
+    var currentFuente by remember { mutableStateOf(fuente) }
+    var shouldScroll by remember { mutableStateOf(false) }
+    var wasPaused by remember { mutableStateOf(false) }
+
+
+
+
 
     LaunchedEffect(Unit) {
         ActivityCompat.requestPermissions(
@@ -91,12 +101,25 @@ fun TeleprompterInteligenteScreen(
         var lastRecalcTime = System.currentTimeMillis()
         var lastRecognizedIndex = 0
 
-        while (scrollIndex < palabras.size) {
+        while (scrollIndex < palabras.size && shouldScroll) {
             if (mirandoPantalla) {
                 val correctionFactor = 0.65f  // puedes ajustarlo a tu gusto (ej: 0.6–0.8)
                 val tiempoPorPalabra = ((60000 / wpm) * correctionFactor).toLong()
 
-                posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                Log.d("SCROLL", "scrollIndex=$scrollIndex, palabras.size=${palabras.size}, wpm=$wpm")
+
+
+                val targetY = posicionesY[scrollIndex] ?: 0
+                val maxScrollY = scrollState.maxValue
+
+// Si ya estamos muy cerca del final y el targetY no provoca scroll, forzamos uno artificial
+                val effectiveTarget = if (targetY >= maxScrollY - 10) {
+                    (maxScrollY + 200).coerceAtMost(scrollState.maxValue + 300)
+                } else {
+                    targetY
+                }
+                scrollState.animateScrollTo(effectiveTarget)
+
 
                 // Desplazamiento más rápido si se ha interrumpido recientemente
                 delay((tiempoPorPalabra * 0.7).toLong())
@@ -106,14 +129,17 @@ fun TeleprompterInteligenteScreen(
                 continue
             }
 
-            if (scrollIndex >= palabras.lastIndex) {
-                recognizer?.stopListening()
-                recognizer?.cancel()
-                recognizer?.destroy()
-                recognizer = null
-                isListening = false
-                break
+            if (scrollIndex >= palabras.lastIndex - 3) {
+                // Forzamos ritmo final fluido aunque no haya más input de voz
+                val finalDelay = ((60000 / wpm) * 0.75f).toLong().coerceAtLeast(100L)
+                posicionesY[scrollIndex]?.let {
+                    scrollState.animateScrollTo(it)
+                }
+                delay(finalDelay)
+                scrollIndex++
+                continue
             }
+
 
             val now = System.currentTimeMillis()
             if (now - lastRecalcTime >= 15000) {
@@ -135,6 +161,8 @@ fun TeleprompterInteligenteScreen(
                         scrollIndex++
                     }
 
+                }else {
+                    Log.d("WPM", "No hay suficientes nuevas palabras para recalcular. Tamaño=${newRecognizedWords.size}")
                 }
                 lastRecognizedIndex = recognizedWords.size
                 lastRecalcTime = now
@@ -143,6 +171,9 @@ fun TeleprompterInteligenteScreen(
     }
 
     fun startContinuousRecognition() {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
@@ -190,7 +221,14 @@ fun TeleprompterInteligenteScreen(
             .padding(16.dp)
     ) {
         Box(Modifier.fillMaxWidth()) {
-            IconButton(onClick = { onVolver() }, modifier = Modifier.align(Alignment.CenterStart)) {
+            IconButton(onClick = { recognizer?.stopListening()
+                recognizer?.cancel()
+                recognizer?.destroy()
+                recognizer = null
+                isListening = false
+                shouldScroll = false
+                onVolver() },
+                modifier = Modifier.align(Alignment.CenterStart)) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color(0xFFDFDCCC))
             }
             Image(
@@ -200,6 +238,12 @@ fun TeleprompterInteligenteScreen(
                     .size(160.dp)
                     .align(Alignment.Center)
             )
+            IconButton(
+                onClick = { mostrarPopupAjustes = true },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = Color(0xFFDFDCCC))
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -258,7 +302,7 @@ fun TeleprompterInteligenteScreen(
 
                     Text(
                         text = palabra,
-                        fontSize = fuente.sp,
+                        fontSize = currentFuente.sp,
                         fontFamily = roboto,
                         fontWeight = if (index == scrollIndex) FontWeight.Bold else FontWeight.Normal,
                         color = color,
@@ -269,6 +313,8 @@ fun TeleprompterInteligenteScreen(
                             }
                     )
                 }
+                Spacer(modifier = Modifier.height(400.dp)) // o más si hace falta
+
             }
         }
 
@@ -288,35 +334,44 @@ fun TeleprompterInteligenteScreen(
             IconButton(onClick = {
                 if (!isListening) {
                     isListening = true
-                    isCalibrating = true
-                    recognizedWords = listOf()
-                    scrollIndex = 0
-                    isCalibrated = false
+                    shouldScroll = true
 
-                    recognizer = SpeechRecognizer.createSpeechRecognizer(context)
-                    startContinuousRecognition()
+                    if (!wasPaused) {
+                        isCalibrating = true
+                        recognizedWords = listOf()
+                        scrollIndex = 0
+                        isCalibrated = false
 
-                    coroutineScope.launch {
-                        val initialDelay = (60000 / wpm).toLong()
-                        val startTime = System.currentTimeMillis()
+                        recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                        startContinuousRecognition()
 
-                        while (System.currentTimeMillis() - startTime < 5000) {
-                            delay(initialDelay)
-                            if (scrollIndex < palabras.size) {
-                                scrollIndex++
-                                posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                        coroutineScope.launch {
+                            val initialDelay = (60000 / wpm).toLong()
+                            val startTime = System.currentTimeMillis()
+
+                            while (System.currentTimeMillis() - startTime < 5000) {
+                                delay(initialDelay)
+                                if (scrollIndex < palabras.size) {
+
+                                    posicionesY[scrollIndex]?.let { scrollState.animateScrollTo(it) }
+                                    scrollIndex++
+                                }
                             }
+
+                            isCalibrating = false
+                            isCalibrated = true
+
+                            val elapsedSeconds = 5f
+                            val wordsSpoken = recognizedWords.size
+                            val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
+                            wpm = (wps * 60).roundToInt().coerceIn(150, 900)
+
+                            launch { adaptiveScroll() }
                         }
-
-                        isCalibrating = false
-                        isCalibrated = true
-
-                        val elapsedSeconds = 5f
-                        val wordsSpoken = recognizedWords.size
-                        val wps = if (wordsSpoken > 0) wordsSpoken / elapsedSeconds else 2f
-                        wpm = (wps * 60).roundToInt().coerceIn(150, 900)
-
-                        launch { adaptiveScroll() }
+                    } else {
+                        wasPaused = false
+                        startContinuousRecognition()
+                        coroutineScope.launch { adaptiveScroll() }
                     }
                 }
             }) {
@@ -329,18 +384,62 @@ fun TeleprompterInteligenteScreen(
 
             IconButton(onClick = {
                 isListening = false
+                shouldScroll = false
                 recognizer?.stopListening()
                 recognizer?.cancel()
                 recognizer?.destroy()
                 recognizer = null
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
+
+                wasPaused=true
+
             }) {
                 Icon(Icons.Default.Stop, contentDescription = "Detener", tint = Color(0xFFDFDCCC))
             }
 
-            IconButton(onClick = { onVolver() }) {
+            IconButton(onClick = {
+                recognizer?.stopListening()
+                recognizer?.cancel()
+                recognizer?.destroy()
+                recognizer = null
+                isListening = false
+                shouldScroll = false
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
+
+                onVolver()
+            }) {
                 Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFFDFDCCC))
             }
+
         }
+        if (mostrarPopupAjustes) {
+            AlertDialog(
+                onDismissRequest = { mostrarPopupAjustes = false },
+                confirmButton = {
+                    TextButton(onClick = { mostrarPopupAjustes = false }) {
+                        Text("Aceptar", color = Color.White)
+                    }
+                },
+                containerColor = fondoColor,
+                title = {
+                    Text("Tamaño de fuente", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                },
+                text = {
+                    Column {
+                        Slider(
+                            value = currentFuente,
+                            onValueChange = { nuevaFuente ->
+                                currentFuente = nuevaFuente
+                            },
+                            valueRange = 12f..40f
+                        )
+                    }
+                }
+            )
+        }
+
     }
 }
 

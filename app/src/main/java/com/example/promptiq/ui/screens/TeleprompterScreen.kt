@@ -42,11 +42,18 @@ fun TeleprompterScreen(
 ) {
     var estaLeyendo by remember { mutableStateOf(false) }
     val palabras = remember(guionSeleccionado) {
-        guionSeleccionado?.contenido?.split(" ") ?: emptyList()
+        guionSeleccionado?.contenido
+            ?.replace(Regex("\\s+"), " ") // Reemplaza cualquier tipo de espacio (saltos de línea, tabs...) por un solo espacio
+            ?.trim()
+            ?.split(" ") ?: emptyList()
     }
+
     var currentWordIndex by remember { mutableStateOf(0) }
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    var currentFuente by remember { mutableStateOf(fuente) }
+    var currentRitmo by remember { mutableStateOf(ritmoLectura) }
+
 
     val posicionesY = remember { mutableStateMapOf<Int, Int>() }
     val density = LocalDensity.current
@@ -58,6 +65,7 @@ fun TeleprompterScreen(
         "Azul" -> Color(0xFF1E2A78)
         else -> Color(0xFF0A192F)
     }
+    var mostrarPopupAjustes by remember { mutableStateOf(false) }
 
     // Scroll sincronizado a palabra actual
     LaunchedEffect(estaLeyendo) {
@@ -69,8 +77,7 @@ fun TeleprompterScreen(
                 posicionesY[currentWordIndex]?.let { targetY ->
                     scrollState.animateScrollTo(targetY)
                 }
-
-                val delayPorPalabra = (1000 / ritmoLectura).toLong().coerceAtLeast(100L)
+                val delayPorPalabra = (1000 / currentRitmo).toLong().coerceAtLeast(100L)
                 delay(delayPorPalabra)
             }
             estaLeyendo = false
@@ -97,6 +104,9 @@ fun TeleprompterScreen(
                         .size(160.dp)
                         .align(Alignment.Center)
                 )
+                IconButton(onClick = { mostrarPopupAjustes = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    Icon(Icons.Default.Settings, contentDescription = "Ajustes rápidos", tint = Color(0xFFDFDCCC))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -153,7 +163,7 @@ fun TeleprompterScreen(
 
                         Text(
                             text = "$palabra ",
-                            fontSize = fuente.sp,
+                            fontSize = currentFuente.sp,
                             fontFamily = roboto,
                             color = color,
                             modifier = Modifier
@@ -196,5 +206,44 @@ fun TeleprompterScreen(
                 }
             }
         }
+        if (mostrarPopupAjustes) {
+            AlertDialog(
+                onDismissRequest = { mostrarPopupAjustes = false },
+                confirmButton = {
+                    TextButton(onClick = { mostrarPopupAjustes = false }) {
+                        Text("Aceptar", color = Color.White)
+                    }
+                },
+                containerColor = fondoColor,
+                title = {
+                    Text("Ajustes rápidos", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                },
+                text = {
+                    Column {
+                        Text("Tamaño de fuente", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                        Slider(
+                            value = currentFuente,
+                            onValueChange = { nuevaFuente ->
+                                currentFuente = nuevaFuente
+                            },
+                            valueRange = 12f..40f
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Velocidad de lectura", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                        Slider(
+                            value = currentRitmo,
+                            onValueChange = { nuevoRitmo ->
+                                currentRitmo = nuevoRitmo
+                            },
+                            valueRange = 0.5f..3f,
+                            steps = 4
+                        )
+                    }
+                }
+            )
+        }
+
+
+
     }
 }

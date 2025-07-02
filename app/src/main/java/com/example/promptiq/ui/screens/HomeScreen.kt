@@ -48,7 +48,7 @@ fun HomeScreen(
 
         // BIENVENIDA
         Text(
-            text = "Bienvenido, $userName",
+            text = "Bienvenido/a, $userName",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = roboto,
@@ -63,7 +63,7 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(16.dp))
         MenuItem("Ajustes", Icons.Filled.Settings, onSettingsClick)
         Spacer(modifier = Modifier.height(16.dp))
-        MenuItem("AI Ayuda rápida", Icons.Filled.Help, onHelpClick)
+        MenuItem("Ayuda rápida", Icons.Filled.Help, onHelpClick)
 
         Spacer(modifier = Modifier.weight(1f))
 

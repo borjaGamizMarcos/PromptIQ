@@ -1,3 +1,4 @@
+// com/example/promptiq/viewmodel/LoginViewModelFactory.kt
 package com.example.promptiq.viewmodel
 
 import android.app.Application
@@ -7,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 class LoginViewModelFactory(
     private val application: Application
 ) : ViewModelProvider.Factory {
+
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(LoginViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

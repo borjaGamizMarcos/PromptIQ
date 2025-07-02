@@ -6,14 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [Guion::class, PreferenciasUsuario::class], // <-- AÑADE ESTO
-    version = 2
+    entities = [Guion::class, PreferenciasUsuario::class, Usuario::class ], // <-- AÑADE ESTO
+    version = 3
 )
 
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun guionDao(): GuionDao
     abstract fun preferenciasDao() : PreferenciasDao
+    abstract fun usuarioDao(): UsuarioDao
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

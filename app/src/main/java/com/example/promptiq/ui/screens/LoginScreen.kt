@@ -3,7 +3,9 @@ package com.example.promptiq.ui.utils.screens
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,10 +15,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.promptiq.R
@@ -27,7 +32,10 @@ import com.example.promptiq.viewmodel.LoginViewModel
 fun LoginScreen(
     viewModel: LoginViewModel,
     onLoginSuccess: (String, String) -> Unit,
-    showError: (String) -> Unit
+    showError: (String) -> Unit,
+    onIrARegistro: () -> Unit,
+    onIrARecuperarContraseña: () ->Unit
+
 ) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
@@ -41,8 +49,6 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
-
         Image(
             painter = painterResource(id = R.drawable.logo_hor),
             contentDescription = "Logo",
@@ -72,8 +78,6 @@ fun LoginScreen(
                 color = Color(0xFF3A5A91)
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         //Email
         OutlinedTextField(
@@ -132,10 +136,22 @@ fun LoginScreen(
 
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A5A91))
         ) {
-            Text("INICIAR SESIÓN", fontFamily = roboto, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("INICIAR SESIÓN", fontFamily = roboto, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFFDFDCCC))
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
 
+        ClickableText(
+            text = AnnotatedString("¿No tienes cuenta? Regístrate"),
+            onClick = { onIrARegistro() },
+            style = TextStyle(
+                color = Color(0xFFDFDCCC),
+                fontSize = 14.sp,
+                fontFamily = roboto,
+                textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
@@ -143,7 +159,10 @@ fun LoginScreen(
             color = Color(0xFFDFDCCC),
             fontSize = 14.sp,
             fontFamily = roboto,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.clickable { onIrARecuperarContraseña() }
+
         )
+
     }
 }

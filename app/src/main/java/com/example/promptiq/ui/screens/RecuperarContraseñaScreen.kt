@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.promptiq.R
@@ -21,19 +22,16 @@ import com.example.promptiq.ui.theme.roboto
 import com.example.promptiq.viewmodel.LoginViewModel
 
 @Composable
-
-fun CambiarContraseñaScreen(
-    emailUsuario: String,
+fun RecuperarContraseñaScreen(
     viewModel: LoginViewModel,
-    onVolver: () -> Unit
-)
- {
+    onVolver: () -> Unit,
+    onRecuperacionExitosa: () -> Unit
+) {
     val context = LocalContext.current
-
-    var contraseñaActual by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var nuevaContraseña by remember { mutableStateOf("") }
     var repetirContraseña by remember { mutableStateOf("") }
-     val textColor = Color(0xFFDFDCCC)
+    val textColor = Color(0xFFDFDCCC)
 
     Column(
         modifier = Modifier
@@ -42,7 +40,6 @@ fun CambiarContraseñaScreen(
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Cabecera con flecha y logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -60,29 +57,23 @@ fun CambiarContraseñaScreen(
                     .align(Alignment.Center)
             )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Cambiar contraseña", fontSize = 24.sp, color = Color(0xFFDFDCCC), fontFamily = roboto)
-
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = contraseñaActual,
-            onValueChange = { contraseñaActual = it },
-            label = { Text("Contraseña actual") },
-            textStyle = TextStyle(color = textColor, fontFamily = roboto),
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-
+        Text(
+            text = "Recuperar Contraseña",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = roboto,
+            color = Color(0xFFDFDCCC)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
-            value = nuevaContraseña,
-            onValueChange = { nuevaContraseña = it },
-            label = { Text("Nueva contraseña") },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Correo electrónico") },
             textStyle = TextStyle(color = textColor, fontFamily = roboto),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -91,11 +82,22 @@ fun CambiarContraseñaScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
+            value = nuevaContraseña,
+            onValueChange = { nuevaContraseña = it },
+            label = { Text("Nueva contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(color = textColor, fontFamily = roboto),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
             value = repetirContraseña,
             onValueChange = { repetirContraseña = it },
-            label = { Text("Repetir nueva contraseña") },
-            textStyle = TextStyle(color = textColor, fontFamily = roboto),
+            label = { Text("Repetir contraseña") },
             modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(color = textColor, fontFamily = roboto),
             singleLine = true
         )
 
@@ -105,23 +107,14 @@ fun CambiarContraseñaScreen(
             onClick = {
                 if (nuevaContraseña != repetirContraseña) {
                     Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_SHORT).show()
-                } else if (contraseñaActual.isBlank() || nuevaContraseña.isBlank()) {
-                    Toast.makeText(context, "No dejes campos vacíos", Toast.LENGTH_SHORT).show()
                 } else {
-                    viewModel.verificarCredenciales(emailUsuario, contraseñaActual,
+                    viewModel.cambiarContraseña(email, nuevaContraseña,
                         onSuccess = {
-                            viewModel.cambiarContraseña(emailUsuario, nuevaContraseña,
-                                onSuccess = {
-                                    Toast.makeText(context, "Contraseña cambiada correctamente", Toast.LENGTH_SHORT).show()
-                                    onVolver()
-                                },
-                                onError = { mensaje ->
-                                    Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
-                                }
-                            )
+                            Toast.makeText(context, "Contraseña actualizada", Toast.LENGTH_SHORT).show()
+                            onRecuperacionExitosa()
                         },
-                        onError = {
-                            Toast.makeText(context, "La contraseña actual es incorrecta", Toast.LENGTH_SHORT).show()
+                        onError = { mensaje ->
+                            Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -129,7 +122,7 @@ fun CambiarContraseñaScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A5A91))
         ) {
-            Text("Guardar cambios", color = Color(0xFFDFDCCC))
+            Text("Restablecer", color = Color(0xFFDFDCCC))
         }
     }
 }
