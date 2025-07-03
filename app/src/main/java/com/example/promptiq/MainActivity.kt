@@ -33,6 +33,7 @@ import com.example.promptiq.viewmodel.LoginViewModelFactory
 import com.example.promptiq.ui.screens.AyudaScreen
 import com.example.promptiq.ui.utils.screens.RegistroScreen
 import com.example.promptiq.ui.screens.RecuperarContraseñaScreen
+import com.example.promptiq.utils.FileUtils
 
 class  MainActivity : ComponentActivity() {
 
@@ -71,8 +72,7 @@ class  MainActivity : ComponentActivity() {
                     contract = ActivityResultContracts.GetContent()
                 ) { uri ->
                     uri?.let {
-                        val inputStream = context.contentResolver.openInputStream(it)
-                        val contenido = inputStream?.bufferedReader().use { it?.readText() } ?: ""
+                        val contenido = FileUtils.leerContenidoDesdeUri(context, it)
                         if (contenido.isNotBlank()) {
                             val nuevoGuion = Guion(
                                 titulo = "Importado ${System.currentTimeMillis()}",
@@ -82,7 +82,7 @@ class  MainActivity : ComponentActivity() {
                             guionViewModel.insertarGuion(nuevoGuion)
                             Toast.makeText(context, "Guion importado correctamente", Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(context, "El archivo está vacío", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -136,7 +136,7 @@ class  MainActivity : ComponentActivity() {
                                 onMostrarMensaje = { mensaje ->
                                     Toast.makeText(context, mensaje, Toast.LENGTH_SHORT).show()
                                 },
-                                onImportarGuion = { seleccionarArchivoLauncher.launch("text/plain") }
+                                onImportarGuion = { seleccionarArchivoLauncher.launch("*/*") }
                             )
 
                             Screen.AJUSTES -> AjustesScreen(

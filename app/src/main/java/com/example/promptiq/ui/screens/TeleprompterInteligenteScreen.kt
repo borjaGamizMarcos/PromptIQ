@@ -297,7 +297,7 @@ fun TeleprompterInteligenteScreen(
                     val color = when {
                         index < scrollIndex -> Color.Gray.copy(alpha = 0.7f)
                         index == scrollIndex -> Color.Yellow
-                        else -> if (colorFondo == "Claro") Color.Black else Color(0xFFDFDCCC)
+                        else -> if (colorFondo == "Claro") Color(0xFF0A192F) else Color(0xFFDFDCCC)
                     }
 
                     Text(

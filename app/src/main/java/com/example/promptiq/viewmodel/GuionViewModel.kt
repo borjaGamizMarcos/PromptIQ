@@ -33,4 +33,5 @@ class GuionViewModel(application: Application) : ViewModel() {
     fun eliminarGuion(guion: Guion) = viewModelScope.launch {
         repository.eliminarGuion(guion)
     }
+
 }

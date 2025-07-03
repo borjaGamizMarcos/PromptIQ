@@ -4,6 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
     id("org.jetbrains.kotlin.kapt")
 }
+configurations.all {
+    exclude(group = "org.slf4j", module = "jcl-over-slf4j")
+}
 
 android {
     namespace = "com.example.promptiq"
@@ -97,6 +100,22 @@ dependencies {
     // ML Kit Face Detection
     implementation("com.google.mlkit:face-detection:16.1.6")
     implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")
+
+
+    // Para PDFs básicos
+    implementation("com.tom-roush:pdfbox-android:1.8.10.3"){
+        exclude(group="commons-logging", module="commons-logging")
+    }
+
+    implementation("org.apache.poi:poi:5.2.3")
+    implementation("org.apache.poi:poi-ooxml-lite:5.2.3")
+    // Apache POI para leer .docx (solo la parte necesaria para Android)
+    implementation("org.apache.poi:poi-ooxml:5.2.3")
+
+
+    implementation("commons-logging:commons-logging:1.2")
+
+
 
 
 
