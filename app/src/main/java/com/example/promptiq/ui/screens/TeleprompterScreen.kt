@@ -3,6 +3,7 @@ package com.example.promptiq.ui.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -19,6 +20,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,13 +39,13 @@ fun TeleprompterScreen(
     onGuionSeleccionar: (Guion) -> Unit,
     fuente: Float,
     colorFondo: String,
-    ritmoLectura: Float, // palabras por segundo
+    ritmoLectura: Float,
     onVolver: () -> Unit
 ) {
     var estaLeyendo by remember { mutableStateOf(false) }
     val palabras = remember(guionSeleccionado) {
         guionSeleccionado?.contenido
-            ?.replace(Regex("\\s+"), " ") // Reemplaza cualquier tipo de espacio (saltos de línea, tabs...) por un solo espacio
+            ?.replace(Regex("\\s+"), " ")
             ?.trim()
             ?.split(" ") ?: emptyList()
     }
@@ -66,6 +68,7 @@ fun TeleprompterScreen(
         else -> Color(0xFF0A192F)
     }
     var mostrarPopupAjustes by remember { mutableStateOf(false) }
+
 
     // Scroll sincronizado a palabra actual
     LaunchedEffect(estaLeyendo) {
@@ -94,8 +97,9 @@ fun TeleprompterScreen(
 
             // Cabecera
             Box(Modifier.fillMaxWidth()) {
+                val color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White
                 IconButton(onClick = { onVolver() }, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color(0xFFDFDCCC))
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = color)
                 }
                 Image(
                     painter = painterResource(id = R.drawable.logo_hor),
@@ -105,7 +109,7 @@ fun TeleprompterScreen(
                         .align(Alignment.Center)
                 )
                 IconButton(onClick = { mostrarPopupAjustes = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
-                    Icon(Icons.Default.Settings, contentDescription = "Ajustes rápidos", tint = Color(0xFFDFDCCC))
+                    Icon(Icons.Default.Settings, contentDescription = "Ajustes rápidos", tint = color)
                 }
             }
 
@@ -121,9 +125,12 @@ fun TeleprompterScreen(
                     onValueChange = {},
                     label = { Text("Guion") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+
                     modifier = Modifier
                         .menuAnchor()
                         .fillMaxWidth()
+                    ,
+                    textStyle = TextStyle(color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White)
                 )
 
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -183,26 +190,27 @@ fun TeleprompterScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                val color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White
                 IconButton(onClick = {
                     coroutineScope.launch {
                         scrollState.scrollTo(0)
                     }
                     currentWordIndex = 0
                 }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = Color(0xFFDFDCCC))
+                    Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = color)
                 }
                 IconButton(onClick = { estaLeyendo = !estaLeyendo }) {
                     Icon(
                         if (estaLeyendo) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = "Reproducir/Pausar",
-                        tint = Color(0xFFDFDCCC)
+                        tint = color
                     )
                 }
                 IconButton(onClick = { estaLeyendo = false }) {
-                    Icon(Icons.Default.Stop, contentDescription = "Detener", tint = Color(0xFFDFDCCC))
+                    Icon(Icons.Default.Stop, contentDescription = "Detener", tint =color)
                 }
                 IconButton(onClick = { onVolver() }) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFFDFDCCC))
+                    Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = color)
                 }
             }
         }
@@ -215,12 +223,14 @@ fun TeleprompterScreen(
                     }
                 },
                 containerColor = fondoColor,
+
+
                 title = {
-                    Text("Ajustes rápidos", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                    Text("Ajustes rápidos", color = if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White, fontFamily = roboto)
                 },
                 text = {
                     Column {
-                        Text("Tamaño de fuente", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                        Text("Tamaño de fuente",color = if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White, fontFamily = roboto)
                         Slider(
                             value = currentFuente,
                             onValueChange = { nuevaFuente ->
@@ -229,7 +239,7 @@ fun TeleprompterScreen(
                             valueRange = 12f..40f
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Velocidad de lectura", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                        Text("Velocidad de lectura", color = if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White, fontFamily = roboto)
                         Slider(
                             value = currentRitmo,
                             onValueChange = { nuevoRitmo ->

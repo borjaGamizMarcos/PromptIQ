@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -221,6 +222,7 @@ fun TeleprompterInteligenteScreen(
             .padding(16.dp)
     ) {
         Box(Modifier.fillMaxWidth()) {
+            val color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White
             IconButton(onClick = { recognizer?.stopListening()
                 recognizer?.cancel()
                 recognizer?.destroy()
@@ -229,7 +231,7 @@ fun TeleprompterInteligenteScreen(
                 shouldScroll = false
                 onVolver() },
                 modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color(0xFFDFDCCC))
+                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = color)
             }
             Image(
                 painter = painterResource(id = R.drawable.logo_hor),
@@ -242,14 +244,14 @@ fun TeleprompterInteligenteScreen(
                 onClick = { mostrarPopupAjustes = true },
                 modifier = Modifier.align(Alignment.CenterEnd)
             ) {
-                Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = Color(0xFFDFDCCC))
+                Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = color)
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text("Velocidad estimada: $wpm wpm", fontSize = 16.sp, color = Color.White)
-        Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = Color.LightGray)
+        Text("Velocidad estimada: $wpm wpm", fontSize = 16.sp, color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White)
+        Text("Última palabra reconocida: $lastRecognizedWord", fontSize = 14.sp, color = if (colorFondo == "Claro") Color(0xFF0A192F) else Color.LightGray)
         Text("Mirando a la pantalla: ${if (mirandoPantalla) "Sí" else "No"}", fontSize = 14.sp, color = if (mirandoPantalla) Color.Green else Color.Red)
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -260,15 +262,17 @@ fun TeleprompterInteligenteScreen(
                 readOnly = true,
                 value = guionSeleccionado?.titulo ?: "Seleccionar guion",
                 onValueChange = {},
-                label = { Text("Guion") },
+                label = { Text("Guion", color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White ) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                textStyle = TextStyle(color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White)
+
             )
 
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 guiones.forEach { guion ->
                     DropdownMenuItem(
-                        text = { Text(guion.titulo) },
+                        text = { Text(guion.titulo)  },
                         onClick = {
                             onGuionSeleccionar(guion)
                             scrollIndex = 0
@@ -313,7 +317,7 @@ fun TeleprompterInteligenteScreen(
                             }
                     )
                 }
-                Spacer(modifier = Modifier.height(400.dp)) // o más si hace falta
+                Spacer(modifier = Modifier.height(400.dp))
 
             }
         }
@@ -324,11 +328,12 @@ fun TeleprompterInteligenteScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+            val color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White
             IconButton(onClick = {
                 coroutineScope.launch { scrollState.scrollTo(0) }
                 scrollIndex = 0
             }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = Color(0xFFDFDCCC))
+                Icon(Icons.Default.Refresh, contentDescription = "Reiniciar", tint = color)
             }
 
             IconButton(onClick = {
@@ -378,7 +383,7 @@ fun TeleprompterInteligenteScreen(
                 Icon(
                     if (!isListening) Icons.Default.PlayArrow else Icons.Default.Mic,
                     contentDescription = "Iniciar",
-                    tint = Color(0xFFDFDCCC)
+                    tint = color
                 )
             }
 
@@ -395,7 +400,7 @@ fun TeleprompterInteligenteScreen(
                 wasPaused=true
 
             }) {
-                Icon(Icons.Default.Stop, contentDescription = "Detener", tint = Color(0xFFDFDCCC))
+                Icon(Icons.Default.Stop, contentDescription = "Detener", tint = color)
             }
 
             IconButton(onClick = {
@@ -410,7 +415,7 @@ fun TeleprompterInteligenteScreen(
 
                 onVolver()
             }) {
-                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFFDFDCCC))
+                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint =color)
             }
 
         }
@@ -419,12 +424,13 @@ fun TeleprompterInteligenteScreen(
                 onDismissRequest = { mostrarPopupAjustes = false },
                 confirmButton = {
                     TextButton(onClick = { mostrarPopupAjustes = false }) {
-                        Text("Aceptar", color = Color.White)
+                        Text("Aceptar", color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White)
                     }
                 },
                 containerColor = fondoColor,
+
                 title = {
-                    Text("Tamaño de fuente", color = Color(0xFFDFDCCC), fontFamily = roboto)
+                    Text("Tamaño de fuente", color= if (colorFondo == "Claro") Color(0xFF0A192F) else Color.White, fontFamily = roboto)
                 },
                 text = {
                     Column {

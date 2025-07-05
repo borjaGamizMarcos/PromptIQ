@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [Guion::class, PreferenciasUsuario::class, Usuario::class ], // <-- AÑADE ESTO
+    entities = [Guion::class, PreferenciasUsuario::class, Usuario::class ],
     version = 3
 )
 
@@ -26,7 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "promptiq_database"
                 )
-                    .fallbackToDestructiveMigration(true) // ⬅️ ¡Esto es lo que evita el crash!
+                    .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance
                 instance

@@ -11,6 +11,6 @@ class PreferenciasRepository(private val dao: PreferenciasDao) {
     }
 
     suspend fun actualizarPreferencias(preferencias: PreferenciasUsuario) {
-        dao.insertarPreferencias(preferencias) // con onConflict = REPLACE
+        dao.insertarPreferencias(preferencias)
     }
 }

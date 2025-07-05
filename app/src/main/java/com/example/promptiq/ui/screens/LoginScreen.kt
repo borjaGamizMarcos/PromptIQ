@@ -61,7 +61,7 @@ fun LoginScreen(
         // Eslogan
         Row(
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(bottom = 40.dp) // 👈 Ajusta espaciado inferior para separarlo del resto
+            modifier = Modifier.padding(bottom = 40.dp)
         ) {
             Text(
                 text = "Tu discurso, ",

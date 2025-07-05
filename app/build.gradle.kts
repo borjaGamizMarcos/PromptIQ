@@ -67,7 +67,7 @@ dependencies {
 
     // Para ViewModel en Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-// Opcional: para fuente Roboto si usas XML
+
     implementation("androidx.compose.ui:ui-text:1.5.4")
     implementation("androidx.compose.material3:material3:1.1.2")
     implementation("androidx.compose.material:material-icons-extended")
@@ -111,8 +111,6 @@ dependencies {
     implementation("org.apache.poi:poi-ooxml-lite:5.2.3")
     // Apache POI para leer .docx (solo la parte necesaria para Android)
     implementation("org.apache.poi:poi-ooxml:5.2.3")
-
-
     implementation("commons-logging:commons-logging:1.2")
 
 
